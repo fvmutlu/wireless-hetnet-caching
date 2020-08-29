@@ -1,16 +1,18 @@
+% Function that calculates delays for a given topology with fixed caching and fixed power
+% Each user makes one request according to the zipf distribution. Each
+% SC and MC caches the most popular contents according to their
+% capacity. Possible transmissions are MC-SC and SC-U. Every
+% transmission is on the same channel so interference comes from every
+% transmitter in the network. Powers are fixed and each transmitter
+% spends a certain amount of power to transmit to a downlink request
+% (instead of node, since MC-SC transmissions can have multiple requests
+% on the same edge). User SINRs and SC SINRs are calculated separately.
+% If SCs don't have requested item cached, they will either go to MC or
+% BH. They will go to MC in cases (1) and (2) that are explained below.
+% Last edited: 8/28/2020
+% Faruk Volkan Mutlu
 function [D, actual_paths, SINR_U, SINR_SC, is] = mainNoOpt(M, gammar, base_lambda, V, U, u_nodes, SC, sc_nodes, u_sc_assoc, edges_routing, edges_all, paths, costs, gains, c_sc, c_mc, C_sc, C_mc, D_bh_mc, D_bh_sc, NoisePower, Pmax, Ptotal, fixed_power)
 
-   %% Algorithm overview
-   % Each user makes one request according to the zipf distribution. Each
-   % SC and MC caches the most popular contents according to their
-   % capacity. Possible transmissions are MC-SC and SC-U. Every
-   % transmission is on the same channel so interference comes from every
-   % transmitter in the network. Powers are fixed and each transmitter
-   % spends a certain amount of power to transmit to a downlink request
-   % (instead of node, since MC-SC transmissions can have multiple requests
-   % on the same edge). User SINRs and SC SINRs are calculated separately.
-   % If SCs don't have requested item cached, they will either go to MC or
-   % BH. They will go to MC in cases (1) and (2) that are explained below.
    %% Requests (assume each user makes only one request)
     pr = (1./(1:M).^gammar)/sum(1./(1:M).^gammar);
     is = zeros(V,M);

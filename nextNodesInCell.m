@@ -1,3 +1,6 @@
+% Function that finds downlink nodes for a given node ('val'), in a cell consisting of paths ('cell')
+% It simply looks through all paths and finds the node that comes after
+% 'val' in each of those paths.
 % 1/29/2019
 % FARUK VOLKAN MUTLU
 function next_nodes = nextNodesInCell(cell, val)
