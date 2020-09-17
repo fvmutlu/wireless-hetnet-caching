@@ -161,8 +161,8 @@ function [D, actual_paths, SINR_U, SINR_SC, is] = mainNoOpt(M, gammar, base_lamb
     end
     %% Calculate delays
     delay_paths = zeros(1,U);
-    delay_sc = 1./log(1+SINR_SC);
-    delay_u = 1./log(1+SINR_U);
+    delay_sc = 1./log2(1+SINR_SC);
+    delay_u = 1./log2(1+SINR_U);
     for u=1:U % Calculate delay for each request by adding up delays on each node along the path (start from user node and add delays incurred at each SC node traversed to get to the data)
         for node=actual_paths{u}(2:length(actual_paths{u})-1) % Remove the user since we'll add it later and remove the last hop since it incurs no delay because the file is found there
             if node == 1
