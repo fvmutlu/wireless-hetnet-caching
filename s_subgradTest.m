@@ -8,7 +8,7 @@ dir_step = 4; % Constant stepsize (s^k in Bertsekas)
 iter_step = 1; % (alpha^k in Bertsekas)
 Pmax = 20; % Maximum power per tx
 Pmin = 1; % Minimum power per tx
-K = 1000; % Set maximum # of iterations
+K = 100; % Set maximum # of iterations
 
 % figure;
 % hold on;
@@ -207,7 +207,8 @@ while(k<=K && norm(n_grad)>1e-3) % Terminate when max # of iterations reached, o
     disp(['Iteration ', num2str(k), ' objective value: ', num2str(n_D)]); % Print iteration objective value
     %n_D_arr(k) = n_D;
     n_grad = double(subs(grad, [s1 s2 s3 s4 y_sc1_1 y_sc1_2 y_sc2_1 y_sc2_2], xk));
-    dir_step = armijoArc(NS, NY, D, n_grad, [s1 s2 s3 s4 y_sc1_1 y_sc1_2 y_sc2_1 y_sc2_2], xk, constraint_set);
+    %dir_step = armijoArc(NS, NY, D, n_grad, [s1 s2 s3 s4 y_sc1_1 y_sc1_2 y_sc2_1 y_sc2_2], xk, constraint_set);
+    dir_step = dir_step/(k+1);
     xk_temp = xk - dir_step*n_grad;
     xk_proj = proj(NS, NY, xk_temp, constraint_set);
     xk = xk + iter_step * (xk_proj - xk);
