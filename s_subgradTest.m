@@ -188,7 +188,7 @@ g2_2 = 1 - piecewise(y_sc1_2+y_sc2_2<1, y_sc1_2+y_sc2_2, 1); % Relaxed caching s
 D = lambda1*(f1+f3*g1_1+f4*g2_1) + lambda2*(f2+f3*g1_2+f4*g2_2); % Objective function
 
 grad = jacobian(D,[s1; s2; s3; s4; y_sc1_1; y_sc1_2; y_sc2_1; y_sc2_2]); % Subgradient function
-
+%%
 constraint_set_s = {@(s_temp) max(s_temp,Pmin), @(s_temp) min(s_temp,Pmax)};
 constraint_set_y = {@(y_temp) [(((sum(y_temp(1:2))>cache_size))*y_temp(1:2).*(cache_size/sum(y_temp(1:2))) + (~(sum(y_temp(1:2))>cache_size))*y_temp(1:2)) ...
                              (((sum(y_temp(3:4))>cache_size))*y_temp(3:4).*(cache_size/sum(y_temp(3:4))) + (~(sum(y_temp(3:4))>cache_size))*y_temp(3:4))], ...
