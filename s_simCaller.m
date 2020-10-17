@@ -1,17 +1,22 @@
-% This is the simulation caller for subgradient method
-%% Initialize topology parameters
-% V = 10;
-% SC = 2;
-% U = V-SC-1;
-% R_cell = 5;
-% M = 5;
-% pathloss_exp = 4;
-% base_lambda = 1;
-% noise = 0.1;
-% cache_capacity = zeros(V,1); cache_capacity(1) = c_mc; cache_capacity(sc_nodes) = c_sc;
+% This is the main function for the subgradient method
+%% Initialize parameters
+% Topology
+V = topology.V;
+V_pos = topology.V_pos;
+sc_nodes = topology.sc_nodes;
+pathloss_exp = topology.pathloss_exp;
+noise = topology.noise;
+paths = topology.paths;
+D_bh_mc = topology.D_bh_mc;
+D_bh_sc = topology.D_bh_sc;
+
+cache_capacity = zeros(V,1); cache_capacity(1) = problem.c_mc; cache_capacity(sc_nodes) = problem.c_sc;
+M = problem.M;
+base_lambda = problem.base_lambda;
+P_min = problem.P_min;
+P_max = problem.P_max;
 
 %% Generate randomized topology and establish paths
-% call cellDistribution and graphConstruction
 total_paths = length(paths);
 total_hops = sum(cellfun(@length,paths));
 gains = zeros(V,V);
@@ -90,6 +95,7 @@ end
 %% Form symbolic caching expressions
 Y = sym('y',[M*V 1]); % Here Y is actually vec(Y)^T from the paper
 Gprime = sym('gp',[1 total_hops]);
+Gintegral = sym('gint',[1 total_hops]); % ROUNDING TEST
 gp_marker = 0; % We need to establish G' functions, since the length of paths are variable we need to keep track of where we are in the following loop
 A = zeros(M*V,M*V); % For affine composition G(Y) = G'(AY)
 for n=1:total_paths % Iterate over all paths (using iterator n) and establish G' functions (length(paths) = length(requests) = U)
@@ -100,9 +106,12 @@ for n=1:total_paths % Iterate over all paths (using iterator n) and establish G'
         pk = p(k);
         y_pk_i = Y((pk-1)*M + i);
         Gprime(gp_marker+k) = 1 - piecewise(y_pk_i<1, y_pk_i, 1); % Establish symbolic function G' for kth node along path p
+        Gintegral(gp_marker+k) = 1;
         for l=1:k
             pl = p(l);
             A((pk-1)*M + i, (pl-1)*M + i) = 1; % In matrix A, mark entries corresponding to all nodes on path p before pk as 1
+            y_pl_i = Y((pl-1)*M + i); % ROUNDING TEST
+            Gintegral(gp_marker+k) = Gintegral(gp_marker+k) * (1-y_pl_i); % ROUNDING TEST
         end
     end
     gp_marker = gp_marker + plen; % Mark all G' functions related to path p are computed
@@ -117,34 +126,35 @@ end
 D = F*transpose(G);
 grad_S_F = transpose(jacobian(F,S));
 grad_S_D = grad_S_F * transpose(G);
-%subgrad_Y_G = transpose(jacobian(G,Y)); % check if this is the same*
 subgrad_Y_Gprime = transpose(jacobian(Gprime,Y));
 subgrad_Y_G = transpose(A)*subs(subgrad_Y_Gprime,Y,A*Y);
 subgrad_Y_D = subgrad_Y_G * transpose(F);
 
 %% Subgradient method initialization
-%Y_0 = zeros(M*V,1); % change these
-%S_0 = zeros(total_edges,1); % change these
-Y_0 = 0.3*ones(M*V,1);
-S_0 = ones(total_edges,1);
+S_0 = (P_max/total_edges)*ones(total_edges,1); % change this
+%Y_0 = 0.5*ones(M*V,1);
+Y_0 = [1;1;0.9;0.1;0;0;0.1;0.9;0;0]; % change this
 D_0 = double(subs(D,[Y;S],[Y_0;S_0]));
-D_hat_0 = double(subs(D,[Y;S],[Y_0;S_0])); % D_hat for Polyak's, keeps track of minimum objective so far
-delta = 3; % delta for Polyak's, change this
-
-Y_t = Y_0;
+delta = 4; % delta for Polyak's**
+epsilon = 1e-5; % termination criterion, if the (t+1)th iteration's objective value is within epsilon of (t)th iteration terminate
 S_t = S_0;
+Y_t = Y_0;
+% S_best = S_t;
+% Y_best = Y_t;
 D_t = D_0;
-Y_t_prev = zeros(M*V,1);
-S_t_prev = zeros(total_hops,1);
-D_t_prev = D_0;
-D_hat_t = D_hat_0;
+D_hat_t = D_0; % D_hat for Polyak's, keeps track of minimum objective so far
 t = 0;
-
+conv_ctr = 0; % TEST
+div_ctr = 2; % TEST
 %% Subgradient method main loop
-while(t==0 || all(Y_t~=Y_t_prev) || all(S_t~=S_t_prev))
-    D_t = double(subs(D,[Y;S],[Y_t;S_t])); % Calculate the objective for iteration t
+while(t==0 || abs(D_t_prev-D_t) >= epsilon)
     disp(['Iteration ', num2str(t), ' objective value: ', num2str(D_t)]); % Print iteration objective value
     D_hat_t = min(D_t,D_hat_t); % If current objective is the minimum so far, replace D_hat
+%     if(D_t<D_hat_t) % TEST
+%         D_hat_t = D_t;
+%         S_best = S_t;
+%         Y_best = Y_t;
+%     end
     d_S_t = double(subs(grad_S_D,[Y;S],[Y_t;S_t])); % Gradient of D w.r.t S evaluated at (Y_t,S_t)
     d_Y_t = double(subs(subgrad_Y_D,[Y;S],[Y_t;S_t])); % Subgradient of D w.r.t Y evaluated at (Y_t,S_t) *this may require change
     step_size_S = (D_t - D_hat_t + delta)/(norm(d_S_t)^2); % Polyak step size calculation
@@ -157,9 +167,27 @@ while(t==0 || all(Y_t~=Y_t_prev) || all(S_t~=S_t_prev))
     D_t_prev = D_t;
     S_t = S_proj_t; % S^{t+1} = \bar{S}^t
     Y_t = Y_proj_t; % Y^{t+1} = \bar{Y}^t
+    D_t = double(subs(D,[Y;S],[Y_t;S_t])); % Calculate the objective for iteration t
+    if(D_t > D_hat_t)
+        conv_ctr = conv_ctr+1;
+        if(conv_ctr==5)
+            delta = delta/sqrt(div_ctr);
+%             S_t = S_best;
+%             Y_t = Y_best;
+            div_ctr = div_ctr+1;
+            conv_ctr = 0;
+        end
+%     else
+%         conv_ctr = 0;
+%         delta = delta*2;
+    end
     t = t+1;
 end
 S_opt = S_t;
 Y_opt = Y_t;
+D_opt = D_t;
 
 %% Rounding
+DO = F*transpose(Gintegral);
+X = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity);
+DO_opt = double(subs(DO,[Y;S],[X;S_opt]));

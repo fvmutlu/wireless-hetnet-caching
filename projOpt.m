@@ -7,6 +7,7 @@ cvx_begin quiet
         S_proj_t >= P_min;
         ones(1,dim_S)*S_proj_t <= P_max;
 cvx_end
+cvx_clear
 % Minimum norm subproblem for Y projection
 cvx_begin quiet
     variable Y_proj_t(dim_Y,1)
@@ -16,4 +17,5 @@ cvx_begin quiet
         Y_proj_t <= 1; % Cache integrality constraint upper bound
         C*Y_proj_t <= cache_capacity; % Cache capacity constraint
 cvx_end
+cvx_clear
 end
