@@ -1,9 +1,10 @@
-function [X] = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity)
-    DO_opt = double(subs(DO,[Y;S],[Y_opt;S_opt]));
+function [X] = pipageRounding(F,Gintegral,Y_opt,S_opt,M,V,cache_capacity)
+    DO_opt = F(S_opt')*transpose(Gintegral(Y_opt'));
     DO_round = DO_opt;
     Y_matrix = reshape(Y_opt,[M,V]);
     for v=1:V
         y = Y_matrix(:,v); % get node v's caching variables
+        y(y<1e-3) = 0;
         while (~all(y==0 | y==1))
             y_frac_pair_ind = find(y~=0 & y~=1);
             if(length(y_frac_pair_ind)==1)
@@ -28,8 +29,8 @@ function [X] = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity)
                     Y_temp = Y_matrix;
                     Y_temp(:,v) = y_temp;
                     Y_temp = reshape(Y_temp,[M*V,1]);
-                    DO_temp = double(subs(DO,[Y;S],[Y_temp;S_opt]));
-                    if (DO_temp < DO_round)
+                    DO_temp = F(S_opt')*transpose(Gintegral(Y_temp'));
+                    if (DO_temp <= DO_round)
                         y = y_temp;
                         DO_round = DO_temp;
                     end
@@ -40,8 +41,8 @@ function [X] = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity)
                     Y_temp = Y_matrix;
                     Y_temp(:,v) = y_temp;
                     Y_temp = reshape(Y_temp,[M*V,1]);
-                    DO_temp = double(subs(DO,[Y;S],[Y_temp;S_opt]));
-                    if (DO_temp < DO_round)
+                    DO_temp = F(S_opt')*transpose(Gintegral(Y_temp'));
+                    if (DO_temp <= DO_round)
                         y = y_temp;
                         DO_round = DO_temp;
                     end
@@ -52,8 +53,8 @@ function [X] = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity)
                     Y_temp = Y_matrix;
                     Y_temp(:,v) = y_temp;
                     Y_temp = reshape(Y_temp,[M*V,1]);
-                    DO_temp = double(subs(DO,[Y;S],[Y_temp;S_opt]));
-                    if (DO_temp < DO_round)
+                    DO_temp = F(S_opt')*transpose(Gintegral(Y_temp'));
+                    if (DO_temp <= DO_round)
                         y = y_temp;
                         DO_round = DO_temp;
                     end
@@ -64,8 +65,8 @@ function [X] = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity)
                     Y_temp = Y_matrix;
                     Y_temp(:,v) = y_temp;
                     Y_temp = reshape(Y_temp,[M*V,1]);
-                    DO_temp = double(subs(DO,[Y;S],[Y_temp;S_opt]));
-                    if (DO_temp < DO_round)
+                    DO_temp = F(S_opt')*transpose(Gintegral(Y_temp'));
+                    if (DO_temp <= DO_round)
                         y = y_temp;
                         DO_round = DO_temp;
                     end
