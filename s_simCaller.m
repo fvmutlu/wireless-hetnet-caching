@@ -11,8 +11,8 @@ pathloss_exp = 4; % Pathloss exponent, you can change this (make sure it is at l
 P_max = 100; % Total power resource constraint
 P_min = 1; % Minimum per-transmitter-node power, FOR SAFE OPERATION MAKE SURE P_min*SC*10 <= P_max
 noise = 1; % Constant noise in the network
-c_sc = 4; % Cache capacity of small cell nodes (MAKE SURE c_sc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
-c_mc = 4; % Cache capacity of macro cell node (MAKE SURE c_mc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
+c_sc = 1; % Cache capacity of small cell nodes (MAKE SURE c_sc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
+c_mc = 2; % Cache capacity of macro cell node (MAKE SURE c_mc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
 base_lambda = 1; % Base value for request rates, request rate for a request is determined by adding the Zipf distribution probability value corresponding to the requested item to this base (i.e. more popular items will have slightly higher request rates)
 C_sc = R_cell^pathloss_exp; % Backhaul link cost for small cells (You can play around with this, but this can affect topology generation and lead to undesirable results)
 % YOU SHOULDN'T CHANGE ANYTHING BELOW THIS LINE
