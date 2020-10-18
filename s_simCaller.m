@@ -45,7 +45,7 @@ problem.P_min = P_min;
 problem.P_max = P_max;
 
 %% Call subgradient method
-[opt_delay, opt_cache, opt_power] = mainSubgradientLarge2(topology,problem);
+[opt_delay, opt_cache, opt_power] = mainSubgradient(topology,problem);
 opt_cache = reshape(opt_cache,[M,V]);
 disp(['Optimal value for D^0 is ' num2str(opt_delay)]);
 disp(['Optimal caching distribution is:']);
