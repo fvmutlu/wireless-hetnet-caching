@@ -1,5 +1,5 @@
 % This is the main function for the subgradient method
-function [DO_opt, X, S_best] = mainSubgradient(topology, problem)
+function [DO_best, X, S_best] = mainSubgradient(topology, problem)
     %% Initialize parameters
     % Topology
     V = topology.V;
@@ -193,14 +193,20 @@ function [DO_opt, X, S_best] = mainSubgradient(topology, problem)
                 end
             end
             t = t+1;
-            if(t>500)
-                disp(['No convergence within 500 iterations, discarding initial point ', num2str(i)]);
-                break;
+            if(t>300)
+                if(D_t > D_best)
+                    disp(['Initial point ', num2str(i), ' exceeded 300 iterations, last best value for relaxed problem was: ', num2str(D_hat_t), '. Discarding this initial point.']);
+                    break;
+                else
+                    disp(['Initial point ', num2str(i), ' exceeded 300 iterations, recording last best value for relaxed problem']);
+                    t = t-1;
+                    break;
+                end
             end
         end
-        if(t<=500)
+        if(t<=300)
             N_init_counted = N_init_counted + 1;
-            disp(['Initial point ', num2str(i), ' local optimum value: ', num2str(D_t), '. Found in ', num2str(t), ' iterations.']);
+            disp(['Initial point ', num2str(i), ' relaxed problem local optimum value: ', num2str(D_t), '. Found in ', num2str(t), ' iterations.']);
             total_iterations = total_iterations + t;
             if(D_t < D_best)
                 D_best = D_t;
@@ -210,13 +216,16 @@ function [DO_opt, X, S_best] = mainSubgradient(topology, problem)
         end
     end
     if(D_best == Inf)
-        disp('Bad topology, algorithm did not converge');
+        disp('Bad set of initial points for topology, algorithm did not converge');
+        X = zeros(M,V);
+        DO_best = 0;
+        S_best = zeros(total_edges,1);
     else
-        disp(['Best local optimum found among ', num2str(N_init_counted), ' initial points: ', num2str(D_best)]);
+        disp(['Best local optimum for relaxed problem found among ', num2str(N_init_counted), ' initial points: ', num2str(D_best)]);
         disp(['Average number of iterations: ', num2str(round(total_iterations/N_init_counted))]);
+        %% Rounding
+        X = pipageRounding(F,Gintegral,Y_best,S_best,M,V,cache_capacity);
+        DO_best = F(S_best')*transpose(Gintegral(X'));
+        disp(['Best local optimum after rounding: ' num2str(DO_best)]);
     end
-    %% Rounding
-    X = pipageRounding(F,Gintegral,Y_best,S_best,M,V,cache_capacity);
-    DO_opt = F(S_best')*transpose(Gintegral(X'));
-    disp(['Best local optimum after rounding: ' num2str(DO_opt)]);
 end

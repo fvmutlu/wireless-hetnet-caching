@@ -2,8 +2,8 @@
 clear variables; close all; clc; % To clean up between runs
 
 % YOU CAN CHANGE VARIABLES BELOW THIS LINE, BE SURE TO CHECK THE COMMENTS
-V = 21; % Total number of nodes in the topology
-SC = 7; % Total number of small cells in the topology
+V = 16; % Total number of nodes in the topology
+SC = 5; % Total number of small cells in the topology
 M = 4; % Total number of items (catalog size)
 R_cell = 5; % Radius of the cell
 plots_enabled = 1; % Remember to make this 0 when averaging over multiple topologies!
