@@ -1,5 +1,5 @@
 % This is the main function for the subgradient method
-function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
+function [DO_opt, X, S_best] = mainSubgradient(topology, problem)
     %% Initialize parameters
     % Topology
     V = topology.V;
@@ -125,77 +125,98 @@ function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
     end
 
     %% Form symbolic objective function expression and gradient expressions
-    %D = F*transpose(G);
     grad_S_F = transpose(jacobian(F,S));
-    %grad_S_D = grad_S_F * transpose(G);
     subgrad_Y_Gprime = transpose(jacobian(Gprime,Y));
     subgrad_Y_G = transpose(A)*subs(subgrad_Y_Gprime,Y,A*Y);
-    %subgrad_Y_D = subgrad_Y_G * transpose(F);
     
     F = matlabFunction(F,'vars',{sort(symvar(S))},'file','F.m');
     G = matlabFunction(G,'vars',{sort(symvar(Y))},'file','G.m');
     Gintegral = matlabFunction(Gintegral,'vars',{sort(symvar(Y))},'file','Gintegral.m');
     grad_S_F = matlabFunction(grad_S_F,'vars',{sort(symvar(S))},'file','grad_S_F.m');
     subgrad_Y_G = matlabFunction(subgrad_Y_G,'vars',{sort(symvar(Y))},'file','subgrad_Y_G.m');
-    
 
-    %% Subgradient method initialization
-    S_0 = (P_max/total_edges)*ones(total_edges,1); % each node starts with the same power (total maximum power constraint / total number of transmissions)
-    Y_0 = repelem(cache_capacity/M,M); % each caching node starts with a distribution that treats all items equally
-    D_0 = F(S_0')*transpose(G(Y_0'));
-    S_t = S_0;
-    Y_t = Y_0;
-    D_t = D_0;
-    D_hat_t = D_0; % D_hat for Polyak's, keeps track of minimum objective so far
-    
-    delta = D_0/2; % delta for Polyak's
-    epsilon = 1e-4; % termination criterion, if the (t+1)th iteration's objective value is within epsilon of (t)th iteration terminate
-    div_ctr = 0;
-    dim_val = 2;
-    slow_ctr = 0;
-    slow_val = 2;
-    t = 0;
-    %% Subgradient method main loop
-    while(t==0 || abs(D_t_prev-D_t) >= epsilon)
-        disp(['Iteration ', num2str(t), ' objective value: ', num2str(D_t)]); % Print iteration objective value
-        D_hat_t = min(D_t,D_hat_t); % If current objective is the minimum so far, replace D_hat
-        d_S_t = grad_S_F(S_t') * transpose(G(Y_t')); % Gradient of D w.r.t S evaluated at (Y_t,S_t)
-        d_Y_t = subgrad_Y_G(Y_t') * transpose(F(S_t')); % Subgradient of D w.r.t Y evaluated at (Y_t,S_t)
-        step_size_S = (D_t - D_hat_t + delta)/(norm(d_S_t)^2); % Polyak step size calculation
-        step_size_Y = (D_t - D_hat_t + delta)/(norm(d_Y_t)^2); % Polyak step size calculation
-        S_step_t = S_t - step_size_S*d_S_t; % Take step for S
-        Y_step_t = Y_t - step_size_Y*d_Y_t; % Take step for Y
-        [S_proj_t, Y_proj_t] = projOpt(S_step_t,Y_step_t,total_edges,M*V,P_min,P_max,C,cache_capacity); % Projection
-        S_t_prev = S_t; % We need to save S^t for the while condition
-        Y_t_prev = Y_t; % We need to save Y^t for the while condition
-        D_t_prev = D_t;
-        S_t = S_proj_t; % S^{t+1} = \bar{S}^t
-        Y_t = Y_proj_t; % Y^{t+1} = \bar{Y}^t
-        D_t = F(S_t')*transpose(G(Y_t')); % Calculate the objective for iteration t
-        if(D_t > D_hat_t) % Decrease delta when zigzagging occurs
-            div_ctr = div_ctr+1;
-            if(div_ctr==5)
-                delta = delta/sqrt(dim_val);
-                dim_val = dim_val+1;
-                div_ctr = 0;
-                slow_ctr = 0;
+    %% Subgradient method
+    N_init = 10; % Number of initial points
+    D_best = Inf; % Needed for first loop iteration
+    total_iterations = 0; % For convergence rate information
+    N_init_counted = 0;
+    for i=1:N_init
+        % Initialization
+        weight = (i-((N_init+1)/2))/(N_init-1);
+        [S_0,Y_0] = randomInitialPoint(total_edges,M*V,P_min,P_max,C,cache_capacity,weight);
+        D_0 = F(S_0')*transpose(G(Y_0'));
+        S_t = S_0;
+        Y_t = Y_0;
+        D_t = D_0;
+        D_hat_t = D_0; % D_hat for Polyak's, keeps track of minimum objective so far
+
+        delta = D_0/2; % delta for Polyak's
+        epsilon = 1e-4; % termination criterion, if the (t+1)th iteration's objective value is within epsilon of (t)th iteration terminate
+        div_ctr = 0;
+        dim_val = 2;
+        slow_ctr = 0;
+        slow_val = 2;
+        t = 0;
+
+        % Main Loop
+        while(t==0 || abs(D_hat_t-D_t) >= epsilon)
+            % disp(['Iteration ', num2str(t), ' objective value: ', num2str(D_t)]); % Print iteration objective value
+            D_hat_t = min(D_t,D_hat_t); % If current objective is the minimum so far, replace D_hat
+            d_S_t = grad_S_F(S_t') * transpose(G(Y_t')); % Gradient of D w.r.t S evaluated at (Y_t,S_t)
+            d_Y_t = subgrad_Y_G(Y_t') * transpose(F(S_t')); % Subgradient of D w.r.t Y evaluated at (Y_t,S_t)
+            step_size_S = (D_t - D_hat_t + delta)/(norm(d_S_t)^2); % Polyak step size calculation
+            step_size_Y = (D_t - D_hat_t + delta)/(norm(d_Y_t)^2); % Polyak step size calculation
+            S_step_t = S_t - step_size_S*d_S_t; % Take step for S
+            Y_step_t = Y_t - step_size_Y*d_Y_t; % Take step for Y
+            [S_proj_t, Y_proj_t] = projOpt(S_step_t,Y_step_t,total_edges,M*V,P_min,P_max,C,cache_capacity); % Projection
+            S_t_prev = S_t; % We need to save S^t for the while condition
+            Y_t_prev = Y_t; % We need to save Y^t for the while condition
+            D_t_prev = D_t;
+            S_t = S_proj_t; % S^{t+1} = \bar{S}^t
+            Y_t = Y_proj_t; % Y^{t+1} = \bar{Y}^t
+            D_t = F(S_t')*transpose(G(Y_t')); % Calculate the objective for iteration t
+            if(D_t > D_hat_t) % Decrease delta when zigzagging occurs
+                div_ctr = div_ctr+1;
+                if(div_ctr==5)
+                    delta = delta/sqrt(dim_val);
+                    dim_val = dim_val+1;
+                    div_ctr = 0;
+                    slow_ctr = 0;
+                end
+            elseif(abs(D_t-D_hat_t) <= 0.01) % TEST: Increase delta when convergence is slow
+                slow_ctr = slow_ctr+1;
+                if(slow_ctr==5)
+                    delta = delta*sqrt(dim_val);
+                    slow_val = slow_val+1;
+                    slow_ctr = 0;
+                    div_ctr = 0;
+                end
             end
-        elseif(abs(D_t-D_hat_t) <= 0.01) % TEST: Increase delta when convergence is slow
-            slow_ctr = slow_ctr+1;
-            if(slow_ctr==5)
-                delta = delta*sqrt(dim_val);
-                slow_val = slow_val+1;
-                slow_ctr = 0;
-                div_ctr = 0;
+            t = t+1;
+            if(t>500)
+                disp(['No convergence within 500 iterations, discarding initial point ', num2str(i)]);
+                break;
             end
         end
-        t = t+1;
+        if(t<=500)
+            N_init_counted = N_init_counted + 1;
+            disp(['Initial point ', num2str(i), ' local optimum value: ', num2str(D_t), '. Found in ', num2str(t), ' iterations.']);
+            total_iterations = total_iterations + t;
+            if(D_t < D_best)
+                D_best = D_t;
+                S_best = S_t;
+                Y_best = Y_t;
+            end
+        end
     end
-    S_opt = S_t;
-    Y_opt = Y_t;
-    D_opt = D_t;
-
+    if(D_best == Inf)
+        disp('Bad topology, algorithm did not converge');
+    else
+        disp(['Best local optimum found among ', num2str(N_init_counted), ' initial points: ', num2str(D_best)]);
+        disp(['Average number of iterations: ', num2str(round(total_iterations/N_init_counted))]);
+    end
     %% Rounding
-    X = pipageRounding(F,Gintegral,Y_opt,S_opt,M,V,cache_capacity);
-    DO_opt = F(S_opt')*transpose(Gintegral(X'));
+    X = pipageRounding(F,Gintegral,Y_best,S_best,M,V,cache_capacity);
+    DO_opt = F(S_best')*transpose(Gintegral(X'));
+    disp(['Best local optimum after rounding: ' num2str(DO_opt)]);
 end

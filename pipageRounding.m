@@ -4,7 +4,8 @@ function [X] = pipageRounding(F,Gintegral,Y_opt,S_opt,M,V,cache_capacity)
     Y_matrix = reshape(Y_opt,[M,V]);
     for v=1:V
         y = Y_matrix(:,v); % get node v's caching variables
-        y(y<1e-3) = 0;
+        y(y<1e-3) = 0; % fix floating-point rounding errors
+        y(abs(y-1)<1e-3) = 1; % fix floating-point rounding errors
         while (~all(y==0 | y==1))
             y_frac_pair_ind = find(y~=0 & y~=1);
             if(length(y_frac_pair_ind)==1)
