@@ -125,17 +125,24 @@ function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
     end
 
     %% Form symbolic objective function expression and gradient expressions
-    D = F*transpose(G);
+    %D = F*transpose(G);
     grad_S_F = transpose(jacobian(F,S));
-    grad_S_D = grad_S_F * transpose(G);
+    %grad_S_D = grad_S_F * transpose(G);
     subgrad_Y_Gprime = transpose(jacobian(Gprime,Y));
     subgrad_Y_G = transpose(A)*subs(subgrad_Y_Gprime,Y,A*Y);
-    subgrad_Y_D = subgrad_Y_G * transpose(F);
+    %subgrad_Y_D = subgrad_Y_G * transpose(F);
+    
+    F = matlabFunction(F,'vars',{sort(symvar(S))},'file','F.m');
+    G = matlabFunction(G,'vars',{sort(symvar(Y))},'file','G.m');
+    Gintegral = matlabFunction(Gintegral,'vars',{sort(symvar(Y))},'file','Gintegral.m');
+    grad_S_F = matlabFunction(grad_S_F,'vars',{sort(symvar(S))},'file','grad_S_F.m');
+    subgrad_Y_G = matlabFunction(subgrad_Y_G,'vars',{sort(symvar(Y))},'file','subgrad_Y_G.m');
+    
 
     %% Subgradient method initialization
     S_0 = (P_max/total_edges)*ones(total_edges,1); % each node starts with the same power (total maximum power constraint / total number of transmissions)
     Y_0 = repelem(cache_capacity/M,M); % each caching node starts with a distribution that treats all items equally
-    D_0 = double(subs(D,[Y;S],[Y_0;S_0]));
+    D_0 = F(S_0')*transpose(G(Y_0'));
     S_t = S_0;
     Y_t = Y_0;
     D_t = D_0;
@@ -145,13 +152,15 @@ function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
     epsilon = 1e-4; % termination criterion, if the (t+1)th iteration's objective value is within epsilon of (t)th iteration terminate
     div_ctr = 0;
     dim_val = 2;
+    slow_ctr = 0;
+    slow_val = 2;
     t = 0;
     %% Subgradient method main loop
     while(t==0 || abs(D_t_prev-D_t) >= epsilon)
         disp(['Iteration ', num2str(t), ' objective value: ', num2str(D_t)]); % Print iteration objective value
         D_hat_t = min(D_t,D_hat_t); % If current objective is the minimum so far, replace D_hat
-        d_S_t = double(subs(grad_S_D,[Y;S],[Y_t;S_t])); % Gradient of D w.r.t S evaluated at (Y_t,S_t)
-        d_Y_t = double(subs(subgrad_Y_D,[Y;S],[Y_t;S_t])); % Subgradient of D w.r.t Y evaluated at (Y_t,S_t)
+        d_S_t = grad_S_F(S_t') * transpose(G(Y_t')); % Gradient of D w.r.t S evaluated at (Y_t,S_t)
+        d_Y_t = subgrad_Y_G(Y_t') * transpose(F(S_t')); % Subgradient of D w.r.t Y evaluated at (Y_t,S_t)
         step_size_S = (D_t - D_hat_t + delta)/(norm(d_S_t)^2); % Polyak step size calculation
         step_size_Y = (D_t - D_hat_t + delta)/(norm(d_Y_t)^2); % Polyak step size calculation
         S_step_t = S_t - step_size_S*d_S_t; % Take step for S
@@ -162,16 +171,23 @@ function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
         D_t_prev = D_t;
         S_t = S_proj_t; % S^{t+1} = \bar{S}^t
         Y_t = Y_proj_t; % Y^{t+1} = \bar{Y}^t
-        D_t = double(subs(D,[Y;S],[Y_t;S_t])); % Calculate the objective for iteration t
+        D_t = F(S_t')*transpose(G(Y_t')); % Calculate the objective for iteration t
         if(D_t > D_hat_t) % Decrease delta when zigzagging occurs
             div_ctr = div_ctr+1;
             if(div_ctr==5)
                 delta = delta/sqrt(dim_val);
                 dim_val = dim_val+1;
                 div_ctr = 0;
+                slow_ctr = 0;
             end
-%         elseif(abs(D_t-D_hat_t) <= 0.1) % TEST: Increase delta when convergence is slow
-%             delta = delta*sqrt(dim_val);
+        elseif(abs(D_t-D_hat_t) <= 0.01) % TEST: Increase delta when convergence is slow
+            slow_ctr = slow_ctr+1;
+            if(slow_ctr==5)
+                delta = delta*sqrt(dim_val);
+                slow_val = slow_val+1;
+                slow_ctr = 0;
+                div_ctr = 0;
+            end
         end
         t = t+1;
     end
@@ -180,7 +196,6 @@ function [DO_opt, X, S_opt] = mainSubgradient(topology, problem)
     D_opt = D_t;
 
     %% Rounding
-    DO = F*transpose(Gintegral);
-    X = pipageRounding(DO,Y,S,Y_opt,S_opt,M,V,cache_capacity);
-    DO_opt = double(subs(DO,[Y;S],[X;S_opt]));
+    X = pipageRounding(F,Gintegral,Y_opt,S_opt,M,V,cache_capacity);
+    DO_opt = F(S_opt')*transpose(Gintegral(X'));
 end
