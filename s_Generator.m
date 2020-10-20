@@ -2,17 +2,17 @@
 clear variables; close all; clc; % To clean up between runs
 
 % YOU CAN CHANGE VARIABLES BELOW THIS LINE, BE SURE TO CHECK THE COMMENTS
-V = 16; % Total number of nodes in the topology
-SC = 5; % Total number of small cells in the topology
-M = 5; % Total number of items (catalog size)
-R_cell = 5; % Radius of the cell
+V = 50; % Total number of nodes in the topology
+SC = 10; % Total number of small cells in the topology
+M = 25; % Total number of items (catalog size)
+R_cell = 7; % Radius of the cell
 plots_enabled = 1; % Remember to make this 0 when averaging over multiple topologies!
 pathloss_exp = 4; % Pathloss exponent, you can change this (make sure it is at least 2, and preferably at most 4)
 P_max = 100; % Total power resource constraint
 P_min = 1; % Minimum per-transmitter-node power, FOR SAFE OPERATION MAKE SURE P_min*SC*10 <= P_max
 noise = 1; % Constant noise in the network
-c_sc = 1; % Cache capacity of small cell nodes (MAKE SURE c_sc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
-c_mc = 2; % Cache capacity of macro cell node (MAKE SURE c_mc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
+c_sc = 0; % Cache capacity of small cell nodes (MAKE SURE c_sc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
+c_mc = 0; % Cache capacity of macro cell node (MAKE SURE c_mc <= M and also make sure to get a reasonable balance between this and M for meaningful results)
 base_lambda = 1; % Base value for request rates, request rate for a request is determined by adding the Zipf distribution probability value corresponding to the requested item to this base (i.e. more popular items will have slightly higher request rates)
 C_sc = R_cell^pathloss_exp; % Backhaul link cost for small cells (You can play around with this, but this can affect topology generation and lead to undesirable results)
 % YOU SHOULDN'T CHANGE ANYTHING BELOW THIS LINE
@@ -46,33 +46,6 @@ problem.M = M;
 problem.base_lambda = base_lambda;
 problem.P_min = P_min;
 problem.P_max = P_max;
-
-%% Call subgradient method
-[opt_delay, opt_cache, opt_power] = mainSubgradient(topology,problem);
-opt_cache = reshape(opt_cache,[M,V]);
-disp(['Optimal value for D^0 is ' num2str(opt_delay)]);
-disp('Optimal caching distribution is:');
-disp(opt_cache);
-disp('Optimal power distribution is:');
-disp(opt_power');
-
-%% Call both alternating and pure subgradient
-[DO_best_alt, X_alt, S_best_alt, DO_best_sub, X_sub, S_best_sub] = mainAltSub(topology, problem);
-% Alternating results
-X_alt = reshape(X_alt,[M,V]);
-disp(['ALTERNATING -- Optimal value for D^0 is ' num2str(DO_best_alt)]);
-disp('ALTERNATING -- Optimal caching distribution is:');
-disp(X_alt);
-disp('ALTERNATING -- Optimal power distribution is:');
-disp(S_best_alt');
-% Subgradient results
-X_sub = reshape(X_sub,[M,V]);
-disp(['SUBGRADIENT -- Optimal value for D^0 is ' num2str(DO_best_sub)]);
-disp('SUBGRADIENT -- Optimal caching distribution is:');
-disp(X_sub);
-disp('SUBGRADIENT -- Optimal power distribution is:');
-disp(S_best_sub');
-
 
 %% Path inversion function (see above comment on topology.paths)
 function [path_out] = invPath(path_in)
