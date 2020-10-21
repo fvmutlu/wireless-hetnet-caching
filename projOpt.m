@@ -1,11 +1,12 @@
-function [S_proj_t, Y_proj_t] = projOpt(S_step_t,Y_step_t,dim_S,dim_Y,P_min,P_max,C,cache_capacity)
+function [S_proj_t, Y_proj_t] = projOpt(S_step_t,Y_step_t,dim_S,dim_Y,P_min,P_max,C,cache_capacity) % REMOVE AP FOR TOTAL BUDGET
 % Minimum norm subproblem for S projection
 cvx_begin quiet
     variable S_proj_t(dim_S,1)
     minimize(norm(S_proj_t - S_step_t))
     subject to
         S_proj_t >= P_min;
-        ones(1,dim_S)*S_proj_t <= P_max;
+        ones(1,dim_S)*S_proj_t <= P_max; % Uncomment for total budget
+        %AP*S_proj_t <= P_max; % Comment out for total budget
 cvx_end
 cvx_clear
 % Minimum norm subproblem for Y projection

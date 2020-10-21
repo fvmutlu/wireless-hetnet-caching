@@ -1,4 +1,4 @@
-function [LRU] = mainLRU(topology,problem)
+function [D_LRU] = mainLRU(topology,problem)
     %% Initialize parameters
     
     % Topology
@@ -83,18 +83,45 @@ function [LRU] = mainLRU(topology,problem)
         LRU_temp(LRU_temp<=0) = Inf; % remove items not cached, if there are Inf min values there's a bug possibly with initial values
         [~,evictions] = min(flip(LRU_temp)); % LRU items that are still in cache is next eviction, get indices from flipped vector so that least popular item will be given in cases of time collision
         evictions = (M+1)-evictions; % get true indices
+        %% LRU update loop with t information
+        for n=1:total_paths
+            p = paths{n};
+            plen = length(p);
+            i = discreteSample(pr,1); % Pick which item is being requested for this path
+            requested_items(n) = i; % Item i requested by nth request
+            lambda_i_p = base_lambda + pr(i);
+            request_rates(n) = lambda_i_p;
+            for k=2:plen % Skip the user node
+                pk = p(k);
+                LRU(i,pk) = t;
+                if(cache(i,pk)==0) % If item was not cached
+                    if(sum(cache(:,pk)) >= cache_capacity(pk)) % If there's no space
+                        if(cache(evictions(pk),pk)==1) % and LRU item still there, evict it and cache new item
+                            cache(evictions(pk),pk)=0;
+                        else % if LRU item is not there, an eviction must have already took place for this node during time slot t
+                            evict_temp = LRU(:,pk).*cache(:,pk); % last access timestamps of items still in pk cache
+                            evict_temp(evict_temp<=0) = Inf; % remove items not cached if there are Inf min values there's a bug possibly with initial values
+                            [~,eviction] = min(flip(evict_temp)); % get index of item to be evicted as per LRU, from flipped vector so that least popular item will be given in cases of time collision
+                            eviction = (M+1)-eviction; % get true index of that item
+                            cache(eviction,pk)=0;
+                        end
+                    end
+                    cache(i,pk)=1;
+                else % If item was cached
+                    break; % Item will be served from this node, no need to update anything uplink
+                end
+            end
+        end
         % Generate new requests        
         F = sym('f',[1 total_hops]);
         Gintegral = zeros(1,total_hops);
         marker = 0;
         for n=1:total_paths % Update caches and LRU status of all nodes with newly generated items for time slot t
-            i = discreteSample(pr,1); % Pick which item is being requested for this path
-            requested_items(n) = i; % Item i requested by nth request
-            lambda_i_p = base_lambda + pr(i);
-            request_rates(n) = lambda_i_p;
+            i = requested_items(n); % Pick which item is being requested for this path
+            lambda_i_p = request_rates(n);
             p = paths{n};
             plen = length(p);
-            %% Form symbolic F expressions and also calculate numeric G's for time slot t requests, with t-1 information
+            %% Form symbolic F expressions and also calculate numeric G's for time slot t
             for k=1:plen-1 
                 pk = p(k);
                 pk_next = p(k+1); % pk_next = p_{k+1}
@@ -123,37 +150,12 @@ function [LRU] = mainLRU(topology,problem)
         end
         Dlru = F * Gintegral';
         Dlru = matlabFunction(Dlru,'vars',{sort(symvar(S))});
-        D_LRU = D_LRU + Dlru(S_t'); % Delay for t requests with (t-1) slot policy
-        % disp(D_LRU);
         %% Power control with t information
         [S_t_next,~] = fmincon(Dlru,S_t',ones(1,total_edges),P_max,[],[],P_min*ones(total_edges,1),Inf(total_edges,1),[],optoptions);
         S_t = S_t_next';
-        %% LRU update loop with t information
-        for n=1:total_paths
-            p = paths{n};
-            plen = length(p);
-            i = requested_items(n);
-            for k=2:plen % Skip the user node
-                pk = p(k);
-                LRU(i,pk) = t;
-                if(cache(i,pk)==0) % If item was not cached
-                    if(sum(cache(:,pk)) >= cache_capacity(pk)) % If there's no space
-                        if(cache(evictions(pk),pk)==1) % and LRU item still there, evict it and cache new item
-                            cache(evictions(pk),pk)=0;
-                        else % if LRU item is not there, an eviction must have already took place for this node during time slot t
-                            evict_temp = LRU(:,pk).*cache(:,pk); % last access timestamps of items still in pk cache
-                            evict_temp(evict_temp<=0) = Inf; % remove items not cached if there are Inf min values there's a bug possibly with initial values
-                            [~,eviction] = min(flip(evict_temp)); % get index of item to be evicted as per LRU, from flipped vector so that least popular item will be given in cases of time collision
-                            eviction = (M+1)-eviction; % get true index of that item
-                            cache(eviction,pk)=0;
-                        end
-                    end
-                    cache(i,pk)=1;
-                else % If item was cached
-                    break; % Item will be served from this node, no need to update anything uplink
-                end
-            end
-        end
+        %% Calculate delay for t and add to the sum
+        D_LRU = D_LRU + Dlru(S_t'); % Delay for t requests
     end
-    disp(D_LRU/MAX_TIME);
+    D_LRU = D_LRU/MAX_TIME;
+    disp(['LRU with power control gives ', num2str(D_LRU), ' over 100 time slots']);
 end

@@ -1,0 +1,427 @@
+FIRST RUN WITH 5 INITIAL POINTS
+
+--- MEDIUM_SPARSE_SMALLCACHE ---
+Initial relaxed problem value for initial point 1 is 10596.2926
+ALTERNATING -- Initial point 1 best objective value: 434.9533
+SUBGRADIENT -- Initial point 1 best objective value: 436.1144
+Initial relaxed problem value for initial point 2 is 36865.6702
+ALTERNATING -- Initial point 2 best objective value: 434.7937
+SUBGRADIENT -- Initial point 2 best objective value: 439.7182
+Initial relaxed problem value for initial point 3 is 25902.1854
+ALTERNATING -- Initial point 3 best objective value: 434.7937
+SUBGRADIENT -- Initial point 3 best objective value: 437.0123
+Initial relaxed problem value for initial point 4 is 40068.7492
+ALTERNATING -- Initial point 4 best objective value: 434.7937
+SUBGRADIENT -- Initial point 4 best objective value: 817.344
+Initial relaxed problem value for initial point 5 is 22554.7474
+ALTERNATING -- Initial point 5 best objective value: 434.7937
+SUBGRADIENT -- Initial point 5 best objective value: 458.1744
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 434.7937
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 458.1744
+LRU with power control gives 587.249 on average
+--- MEDIUM_DENSE_SMALLCACHE ---
+Initial relaxed problem value for initial point 1 is 15472.8452
+ALTERNATING -- Initial point 1 best objective value: 249.9469
+SUBGRADIENT -- Initial point 1 best objective value: 250.1117
+Initial relaxed problem value for initial point 2 is 7918.0242
+ALTERNATING -- Initial point 2 best objective value: 249.9002
+SUBGRADIENT -- Initial point 2 best objective value: 249.9651
+Initial relaxed problem value for initial point 3 is 17990.3666
+ALTERNATING -- Initial point 3 best objective value: 249.8327
+SUBGRADIENT -- Initial point 3 best objective value: 249.9756
+Initial relaxed problem value for initial point 4 is 20597.3585
+ALTERNATING -- Initial point 4 best objective value: 249.8327
+SUBGRADIENT -- Initial point 4 best objective value: 249.8582
+Initial relaxed problem value for initial point 5 is 4787.5423
+ALTERNATING -- Initial point 5 best objective value: 249.8327
+SUBGRADIENT -- Initial point 5 best objective value: 251.2407
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 249.8327
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 251.2407
+LRU with power control gives 304.8492 on average
+
+
+SECOND RUN WITH 10 INITIAL POINTS
+
+--- MEDIUM_SPARSE_SMALLCACHE ---
+Initial relaxed problem value for initial point 1 is 17001.7995
+ALTERNATING -- Initial point 1 best objective value: 576.0108
+SUBGRADIENT -- Initial point 1 best objective value: 594.5147
+Initial relaxed problem value for initial point 2 is 6519.9459
+ALTERNATING -- Initial point 2 best objective value: 576.0108
+SUBGRADIENT -- Initial point 2 best objective value: 587.5838
+Initial relaxed problem value for initial point 3 is 19357.9482
+ALTERNATING -- Initial point 3 best objective value: 575.8935
+SUBGRADIENT -- Initial point 3 best objective value: 583.8101
+Initial relaxed problem value for initial point 4 is 47327.3494
+ALTERNATING -- Initial point 4 best objective value: 575.8935
+SUBGRADIENT -- Initial point 4 best objective value: 613.8917
+Initial relaxed problem value for initial point 5 is 27874.0002
+ALTERNATING -- Initial point 5 best objective value: 575.8935
+SUBGRADIENT -- Initial point 5 best objective value: 580.0356
+Initial relaxed problem value for initial point 6 is 12957.8564
+ALTERNATING -- Initial point 6 best objective value: 575.8935
+SUBGRADIENT -- Initial point 6 best objective value: 594.1371
+Initial relaxed problem value for initial point 7 is 18291.6688
+ALTERNATING -- Initial point 7 best objective value: 575.8935
+SUBGRADIENT -- Initial point 7 best objective value: 590.7691
+Initial relaxed problem value for initial point 8 is 14019.5822
+ALTERNATING -- Initial point 8 best objective value: 575.8935
+SUBGRADIENT -- Initial point 8 best objective value: 584.1388
+Initial relaxed problem value for initial point 9 is 13419.8409
+ALTERNATING -- Initial point 9 best objective value: 575.8935
+SUBGRADIENT -- Initial point 9 best objective value: 580.7076
+Initial relaxed problem value for initial point 10 is 27146.0269
+ALTERNATING -- Initial point 10 best objective value: 575.8935
+SUBGRADIENT -- Initial point 10 best objective value: 595.4358
+ALTERNATING -- Best local optimum for relaxed problem found among 10 initial points: 575.8935
+SUBGRADIENT -- Best local optimum for relaxed problem found among 10 initial points: 595.4358
+LRU with power control gives 595.8632 on average
+--- MEDIUM_DENSE_SMALLCACHE ---
+Initial relaxed problem value for initial point 1 is 5368.8785
+ALTERNATING -- Initial point 1 best objective value: 100.278
+SUBGRADIENT -- Initial point 1 best objective value: 104.2541
+Initial relaxed problem value for initial point 2 is 6276.8027
+ALTERNATING -- Initial point 2 best objective value: 99.4588
+SUBGRADIENT -- Initial point 2 best objective value: 103.6442
+Initial relaxed problem value for initial point 3 is 19129.8671
+ALTERNATING -- Initial point 3 best objective value: 99.4588
+SUBGRADIENT -- Initial point 3 best objective value: 106.3911
+Initial relaxed problem value for initial point 4 is 8359.9999
+ALTERNATING -- Initial point 4 best objective value: 99.4588
+SUBGRADIENT -- Initial point 4 best objective value: 103.6405
+Initial relaxed problem value for initial point 5 is 4642.4178
+ALTERNATING -- Initial point 5 best objective value: 99.2487
+SUBGRADIENT -- Initial point 5 best objective value: 111.9987
+Initial relaxed problem value for initial point 6 is 1798.4509
+ALTERNATING -- Initial point 6 best objective value: 99.2487
+SUBGRADIENT -- Initial point 6 best objective value: 115.7921
+Initial relaxed problem value for initial point 7 is 5181.9776
+ALTERNATING -- Initial point 7 best objective value: 99.2487
+SUBGRADIENT -- Initial point 7 best objective value: 103.9461
+Initial relaxed problem value for initial point 8 is 7814.6675
+ALTERNATING -- Initial point 8 best objective value: 99.2487
+SUBGRADIENT -- Initial point 8 best objective value: 107.9361
+Initial relaxed problem value for initial point 9 is 4727.1195
+ALTERNATING -- Initial point 9 best objective value: 99.2487
+SUBGRADIENT -- Initial point 9 best objective value: 106.0765
+Initial relaxed problem value for initial point 10 is 2338.487
+ALTERNATING -- Initial point 10 best objective value: 99.2487
+SUBGRADIENT -- Initial point 10 best objective value: 103.2393
+ALTERNATING -- Best local optimum for relaxed problem found among 10 initial points: 99.2487
+SUBGRADIENT -- Best local optimum for relaxed problem found among 10 initial points: 103.2393
+LRU with power control gives 302.7743 on average
+
+
+LOW SINR RUN WITH 5 INITIAL POINTS
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 0.1)
+Initial relaxed problem value for initial point 1 is 20554.0785
+ALTERNATING -- Initial point 1 best objective value: 258.6292
+SUBGRADIENT -- Initial point 1 best objective value: 261.68
+Initial relaxed problem value for initial point 2 is 3152.9302
+ALTERNATING -- Initial point 2 best objective value: 258.6292
+SUBGRADIENT -- Initial point 2 best objective value: 262.0578
+Initial relaxed problem value for initial point 3 is 13269.2907
+ALTERNATING -- Initial point 3 best objective value: 258.6292
+SUBGRADIENT -- Initial point 3 best objective value: 261.0335
+Initial relaxed problem value for initial point 4 is 8298.2825
+ALTERNATING -- Initial point 4 best objective value: 258.6292
+SUBGRADIENT -- Initial point 4 best objective value: 261.5508
+Initial relaxed problem value for initial point 5 is 7003.7144
+ALTERNATING -- Initial point 5 best objective value: 258.6292
+SUBGRADIENT -- Initial point 5 best objective value: 262.2778
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 258.6292
+ALTERNATING -- Best local optimum after rounding: 258.5917
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 262.2778
+SUBGRADIENT -- Best local optimum after rounding: 259.2304
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 0.2)
+Initial relaxed problem value for initial point 1 is 11845.4712
+ALTERNATING -- Initial point 1 best objective value: 333.0584
+SUBGRADIENT -- Initial point 1 best objective value: 333.3589
+Initial relaxed problem value for initial point 2 is 21028.2758
+ALTERNATING -- Initial point 2 best objective value: 333.0404
+SUBGRADIENT -- Initial point 2 best objective value: 378.8714
+Initial relaxed problem value for initial point 3 is 16226.7971
+ALTERNATING -- Initial point 3 best objective value: 333.0404
+SUBGRADIENT -- Initial point 3 best objective value: 472.6355
+Initial relaxed problem value for initial point 4 is 17627.7654
+ALTERNATING -- Initial point 4 best objective value: 333.0389
+SUBGRADIENT -- Initial point 4 best objective value: 424.4305
+Initial relaxed problem value for initial point 5 is 5220.8295
+ALTERNATING -- Initial point 5 best objective value: 333.0389
+SUBGRADIENT -- Initial point 5 best objective value: 333.4522
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 333.0389
+ALTERNATING -- Best local optimum after rounding: 333.0101
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 333.4522
+SUBGRADIENT -- Best local optimum after rounding: 337.244
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 0.3)
+Initial relaxed problem value for initial point 1 is 28309.4123
+ALTERNATING -- Initial point 1 best objective value: 359.9466
+SUBGRADIENT -- Initial point 1 best objective value: 362.2877
+Initial relaxed problem value for initial point 2 is 6133.0236
+ALTERNATING -- Initial point 2 best objective value: 359.9298
+SUBGRADIENT -- Initial point 2 best objective value: 362.6443
+Initial relaxed problem value for initial point 3 is 17809.3113
+ALTERNATING -- Initial point 3 best objective value: 359.9013
+SUBGRADIENT -- Initial point 3 best objective value: 363.3107
+Initial relaxed problem value for initial point 4 is 31809.7051
+ALTERNATING -- Initial point 4 best objective value: 359.8667
+SUBGRADIENT -- Initial point 4 best objective value: 362.9638
+Initial relaxed problem value for initial point 5 is 29444.3386
+ALTERNATING -- Initial point 5 best objective value: 359.8667
+SUBGRADIENT -- Initial point 5 best objective value: 360.7669
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 359.8667
+ALTERNATING -- Best local optimum after rounding: 363.6645
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 360.7669
+SUBGRADIENT -- Best local optimum after rounding: 364.2913
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 0.4)
+Initial relaxed problem value for initial point 1 is 37783.0041
+ALTERNATING -- Initial point 1 best objective value: 430.634
+SUBGRADIENT -- Initial point 1 best objective value: 458.0325
+Initial relaxed problem value for initial point 2 is 8585.4116
+ALTERNATING -- Initial point 2 best objective value: 430.5716
+SUBGRADIENT -- Initial point 2 best objective value: 442.1423
+Initial relaxed problem value for initial point 3 is 48283.0207
+ALTERNATING -- Initial point 3 best objective value: 430.5716
+SUBGRADIENT -- Initial point 3 best objective value: 440.4062
+Initial relaxed problem value for initial point 4 is 28886.8053
+ALTERNATING -- Initial point 4 best objective value: 430.5716
+SUBGRADIENT -- Initial point 4 best objective value: 441.1653
+Initial relaxed problem value for initial point 5 is 20540.9071
+ALTERNATING -- Initial point 5 best objective value: 430.5716
+SUBGRADIENT -- Initial point 5 best objective value: 432.9406
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 430.5716
+ALTERNATING -- Best local optimum after rounding: 430.2593
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 432.9406
+SUBGRADIENT -- Best local optimum after rounding: 433.0164
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 0.5)
+Initial relaxed problem value for initial point 1 is 25076.0919
+ALTERNATING -- Initial point 1 best objective value: 304.9096
+SUBGRADIENT -- Initial point 1 best objective value: 506.2797
+Initial relaxed problem value for initial point 2 is 17866.6021
+ALTERNATING -- Initial point 2 best objective value: 304.9096
+SUBGRADIENT -- Initial point 2 best objective value: 447.6657
+Initial relaxed problem value for initial point 3 is 18185.952
+ALTERNATING -- Initial point 3 best objective value: 304.9043
+SUBGRADIENT -- Initial point 3 best objective value: 474.0436
+Initial relaxed problem value for initial point 4 is 20867.1928
+ALTERNATING -- Initial point 4 best objective value: 304.846
+SUBGRADIENT -- Initial point 4 best objective value: 424.496
+Initial relaxed problem value for initial point 5 is 25103.6554
+ALTERNATING -- Initial point 5 best objective value: 304.846
+SUBGRADIENT -- Initial point 5 best objective value: 396.5012
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 304.846
+ALTERNATING -- Best local optimum after rounding: 304.7452
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 396.5012
+SUBGRADIENT -- Best local optimum after rounding: 394.9155
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 1)
+Initial relaxed problem value for initial point 1 is 14547.892
+ALTERNATING -- Initial point 1 best objective value: 576.0781
+SUBGRADIENT -- Initial point 1 best objective value: 590.3144
+Initial relaxed problem value for initial point 2 is 40404.9309
+ALTERNATING -- Initial point 2 best objective value: 576.0781
+SUBGRADIENT -- Initial point 2 best objective value: 588.4102
+Initial relaxed problem value for initial point 3 is 21862.0788
+ALTERNATING -- Initial point 3 best objective value: 576.0781
+SUBGRADIENT -- Initial point 3 best objective value: 589.7899
+Initial relaxed problem value for initial point 4 is 23394.6026
+ALTERNATING -- Initial point 4 best objective value: 576.0781
+SUBGRADIENT -- Initial point 4 best objective value: 578.325
+Initial relaxed problem value for initial point 5 is 36759.6038
+ALTERNATING -- Initial point 5 best objective value: 576.0781
+SUBGRADIENT -- Initial point 5 best objective value: 587.803
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 576.0781
+ALTERNATING -- Best local optimum after rounding: 579.2565
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 587.803
+SUBGRADIENT -- Best local optimum after rounding: 588.231
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 5)
+Initial relaxed problem value for initial point 1 is 22700.0364
+ALTERNATING -- Initial point 1 best objective value: 973.7617
+SUBGRADIENT -- Initial point 1 best objective value: 1354.1197
+Initial relaxed problem value for initial point 2 is 22584.7046
+ALTERNATING -- Initial point 2 best objective value: 973.6779
+SUBGRADIENT -- Initial point 2 best objective value: 1315.5656
+Initial relaxed problem value for initial point 3 is 21562.6386
+ALTERNATING -- Initial point 3 best objective value: 973.6256
+SUBGRADIENT -- Initial point 3 best objective value: 1287.3801
+Initial relaxed problem value for initial point 4 is 23488.6988
+ALTERNATING -- Initial point 4 best objective value: 973.6256
+SUBGRADIENT -- Initial point 4 best objective value: 1326.7284
+Initial relaxed problem value for initial point 5 is 23618.078
+ALTERNATING -- Initial point 5 best objective value: 973.6256
+SUBGRADIENT -- Initial point 5 best objective value: 1358.0857
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 973.6256
+ALTERNATING -- Best local optimum after rounding: 977.3935
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 1358.0857
+SUBGRADIENT -- Best local optimum after rounding: 1354.5004
+
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 10)
+Initial relaxed problem value for initial point 1 is 31503.7412
+ALTERNATING -- Initial point 1 best objective value: 1342.4809
+SUBGRADIENT -- Initial point 1 best objective value: 1952.5812
+Initial relaxed problem value for initial point 2 is 13455.9495
+ALTERNATING -- Initial point 2 best objective value: 1342.4809
+SUBGRADIENT -- Initial point 2 best objective value: 1641.2718
+Initial relaxed problem value for initial point 3 is 10832.5289
+ALTERNATING -- Initial point 3 best objective value: 1342.4809
+SUBGRADIENT -- Initial point 3 best objective value: 1671.4137
+Initial relaxed problem value for initial point 4 is 27688.6445
+ALTERNATING -- Initial point 4 best objective value: 1342.4809
+SUBGRADIENT -- Initial point 4 best objective value: 1874.8345
+Initial relaxed problem value for initial point 5 is 16290.073
+ALTERNATING -- Initial point 5 best objective value: 1342.4809
+SUBGRADIENT -- Initial point 5 best objective value: 1787.9353
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 1342.4809
+ALTERNATING -- Best local optimum after rounding: 1341.9336
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 1787.9353
+SUBGRADIENT -- Best local optimum after rounding: 1780.572
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise=100)
+Initial relaxed problem value for initial point 1 is 147079.1823
+ALTERNATING -- Initial point 1 best objective value: 13018.1327
+SUBGRADIENT -- Initial point 1 best objective value: 13138.7752
+Initial relaxed problem value for initial point 2 is 92938.4573
+ALTERNATING -- Initial point 2 best objective value: 13018.1259
+SUBGRADIENT -- Initial point 2 best objective value: 13264.7314
+Initial relaxed problem value for initial point 3 is 109402.3042
+ALTERNATING -- Initial point 3 best objective value: 13018.1259
+SUBGRADIENT -- Initial point 3 best objective value: 13334.8938
+Initial relaxed problem value for initial point 4 is 86710.7077
+ALTERNATING -- Initial point 4 best objective value: 13018.1255
+SUBGRADIENT -- Initial point 4 best objective value: 13133.231
+Initial relaxed problem value for initial point 5 is 163833.4846
+ALTERNATING -- Initial point 5 best objective value: 13018.1255
+SUBGRADIENT -- Initial point 5 best objective value: 13113.337
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 13018.1255
+ALTERNATING -- Best local optimum after rounding: 13030.0082
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 13113.337
+SUBGRADIENT -- Best local optimum after rounding: 13095.8061
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 200)
+Initial relaxed problem value for initial point 1 is 252416.1894
+ALTERNATING -- Initial point 1 best objective value: 17992.7641
+SUBGRADIENT -- Initial point 1 best objective value: 26449.5677
+Initial relaxed problem value for initial point 2 is 330982.4317
+ALTERNATING -- Initial point 2 best objective value: 17992.7641
+SUBGRADIENT -- Initial point 2 best objective value: 18757.8445
+Initial relaxed problem value for initial point 3 is 232570.816
+ALTERNATING -- Initial point 3 best objective value: 17983.3584
+SUBGRADIENT -- Initial point 3 best objective value: 20540.4751
+Initial relaxed problem value for initial point 4 is 193373.9501
+ALTERNATING -- Initial point 4 best objective value: 17981.875
+SUBGRADIENT -- Initial point 4 best objective value: 21207.3086
+Initial relaxed problem value for initial point 5 is 262706.7422
+ALTERNATING -- Initial point 5 best objective value: 17981.875
+SUBGRADIENT -- Initial point 5 best objective value: 25985.3217
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 17981.875
+ALTERNATING -- Best local optimum after rounding: 17978.5315
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 25985.3217
+SUBGRADIENT -- Best local optimum after rounding: 25200.0995
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 400)
+Initial relaxed problem value for initial point 1 is 685421.2798
+ALTERNATING -- Initial point 1 best objective value: 48749.9209
+SUBGRADIENT -- Initial point 1 best objective value: 56634.2818
+Initial relaxed problem value for initial point 2 is 265127.7706
+ALTERNATING -- Initial point 2 best objective value: 48749.9209
+SUBGRADIENT -- Initial point 2 best objective value: 53277.0832
+Initial relaxed problem value for initial point 3 is 650461.7971
+ALTERNATING -- Initial point 3 best objective value: 48749.9209
+SUBGRADIENT -- Initial point 3 best objective value: 54857.6006
+Initial relaxed problem value for initial point 4 is 528101.8177
+ALTERNATING -- Initial point 4 best objective value: 48742.1536
+SUBGRADIENT -- Initial point 4 best objective value: 54793.2803
+Initial relaxed problem value for initial point 5 is 394940.8646
+ALTERNATING -- Initial point 5 best objective value: 48742.1536
+SUBGRADIENT -- Initial point 5 best objective value: 52512.353
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 48742.1536
+ALTERNATING -- Best local optimum after rounding: 48742.1289
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 52512.353
+SUBGRADIENT -- Best local optimum after rounding: 52445.8562
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 800)
+Initial relaxed problem value for initial point 1 is 985001.5702
+ALTERNATING -- Initial point 1 best objective value: 90469.5171
+SUBGRADIENT -- Initial point 1 best objective value: 93852.1699
+Initial relaxed problem value for initial point 2 is 1187224.1949
+ALTERNATING -- Initial point 2 best objective value: 90466.9389
+SUBGRADIENT -- Initial point 2 best objective value: 95331.2293
+Initial relaxed problem value for initial point 3 is 640447.1935
+ALTERNATING -- Initial point 3 best objective value: 90466.9389
+SUBGRADIENT -- Initial point 3 best objective value: 96928.514
+Initial relaxed problem value for initial point 4 is 1396843.472
+ALTERNATING -- Initial point 4 best objective value: 90466.5427
+SUBGRADIENT -- Initial point 4 best objective value: 94724.5513
+Initial relaxed problem value for initial point 5 is 706037.7819
+ALTERNATING -- Initial point 5 best objective value: 90466.5427
+SUBGRADIENT -- Initial point 5 best objective value: 91793.5263
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 90466.5427
+ALTERNATING -- Best local optimum after rounding: 90457.925
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 91793.5263
+SUBGRADIENT -- Best local optimum after rounding: 91743.9976
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 1000)
+Initial relaxed problem value for initial point 1 is 1094583.8811
+ALTERNATING -- Initial point 1 best objective value: 103067.5223
+SUBGRADIENT -- Initial point 1 best objective value: 107832.62
+Initial relaxed problem value for initial point 2 is 854990.1404
+ALTERNATING -- Initial point 2 best objective value: 103067.5223
+SUBGRADIENT -- Initial point 2 best objective value: 106165.4423
+Initial relaxed problem value for initial point 3 is 1612784.8058
+ALTERNATING -- Initial point 3 best objective value: 103027.2066
+SUBGRADIENT -- Initial point 3 best objective value: 109694.5063
+Initial relaxed problem value for initial point 4 is 1087104.6851
+ALTERNATING -- Initial point 4 best objective value: 103027.2066
+SUBGRADIENT -- Initial point 4 best objective value: 116696.4505
+Initial relaxed problem value for initial point 5 is 1577241.9176
+ALTERNATING -- Initial point 5 best objective value: 103027.2066
+SUBGRADIENT -- Initial point 5 best objective value: 110273.4039
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 103027.2066
+ALTERNATING -- Best local optimum after rounding: 103027.3191
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 110273.4039
+SUBGRADIENT -- Best local optimum after rounding: 110177.2754
+
+--- MEDIUM_SPARSE_SMALLCACHE --- (noise = 1600)
+Initial relaxed problem value for initial point 1 is 2054435.7029
+ALTERNATING -- Initial point 1 best objective value: 165018.0717
+SUBGRADIENT -- Initial point 1 best objective value: 165315.9029
+Initial relaxed problem value for initial point 2 is 1130204.6813
+ALTERNATING -- Initial point 2 best objective value: 165018.0717
+SUBGRADIENT -- Initial point 2 best objective value: 167337.8785
+Initial relaxed problem value for initial point 3 is 2703762.6475
+ALTERNATING -- Initial point 3 best objective value: 165018.0717
+SUBGRADIENT -- Initial point 3 best objective value: 167531.3932
+Initial relaxed problem value for initial point 4 is 2226266.9611
+ALTERNATING -- Initial point 4 best objective value: 165018.0717
+SUBGRADIENT -- Initial point 4 best objective value: 170424.9596
+Initial relaxed problem value for initial point 5 is 2345841.6324
+ALTERNATING -- Initial point 5 best objective value: 165018.0717
+SUBGRADIENT -- Initial point 5 best objective value: 165519.1661
+ALTERNATING -- Best local optimum for relaxed problem found among 5 initial points: 165018.0717
+ALTERNATING -- Best local optimum after rounding: 164838.002
+SUBGRADIENT -- Best local optimum for relaxed problem found among 5 initial points: 165519.1661
+SUBGRADIENT -- Best local optimum after rounding: 165227.1676
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
