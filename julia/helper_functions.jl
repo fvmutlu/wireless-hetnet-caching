@@ -1,6 +1,58 @@
 include("basic_functions.jl")
 using Convex, SCS, Random, Distributions, Dates, Combinatorics
 
+function cellGraph(V,SC,R_cell)
+    U = V-SC-1 # Number of users
+    V_pos = zeros(Float64, V, 3) # Last column is node type identifier MC = 0, SC = 1, U = 2
+    SC_pos = zeros(Float64, SC, 2) # No need for identifier, all SCs
+    R_sc = R_cell / 2 # Initial coverage for SCs, avoid placing another SC in this range
+
+    # Place non-MC nodes
+    for v in 2:V
+        norm = 0;
+        V_pos[v,:] .= 0 # (0,0,0) is the MC entry hence further nodes shouldn't be placed there
+        while (norm > R_cell) || ((V_pos[v, 1] == 0) && (V_pos[v, 2] == 0)) # If point is outside cell area or is at the center, find new point
+            V_pos[v,1:2] = 2 * R_cell .* rand(Float64,1,2) .- R_cell # Generate point in interval (-R_cell, R_cell) and assign to x for node v's position
+            norm = sqrt(V_pos[v, 1]^2 + V_pos[v, 2]^2) # Calculate norm to make sure point is within cell
+        end
+    end
+    V_pos[2:V,3] .= 2 # Mark all non-MC nodes as U first
+
+    # Mark SC nodes
+    sc_nodes = zeros(Int64, 1, SC)
+    sc_count = 0
+    # Assign random node to be first SC
+    while (sc_count == 0)
+        rand_node = rand(2:V)
+        if sqrt(V_pos[rand_node, 1]^2 + V_pos[rand_node, 2]^2) > R_sc
+            sc_nodes[1] = rand_node; # Assign node ID in sc_nodes array
+            SC_pos[1,:] = V_pos[rand_node,[1 2]] # Assign node position in SC positions array
+            V_pos[rand_node,3] = 1 # Mark node as SC
+            sc_count = 1 # Set sc_count to 1 since we have our first SC
+        end
+    end
+    while sc_count < SC # Assign further nodes to SC set
+        for v in 2:V
+            if (sc_count < SC) && !(v in sc_nodes) # If there is still need for an SC, get the distance from this node to each SC node
+                dist_to_sc = sqrt.(sum((SC_pos .- V_pos[v, [1 2]]) .^ 2, dims=2))
+                if all(i->(i > R_sc), dist_to_sc) # If all SC nodes are sufficiently far away, node v can be marked as SC
+                    sc_count += 1 # Increment sc_count
+                    sc_nodes[sc_count] = v # Assign node ID in sc_nodes array
+                    SC_pos[sc_count,:] = V_pos[v,[1 2]] # Assign node position in SC positions array 
+                    V_pos[v,3] = 1 # Mark node as SC                
+                end
+            end    
+        end # If for all possible v, no far enough SCs were found, we'll have to adjust expectations
+        R_sc = R_sc - R_sc/5 # Decrease R_sc by %20 at each iteration (the while guarantees that if there are enough SC this loop will not repeat)
+    end
+
+    # u_nodes = findall(i->!(i in sc_nodes),2:V) # Create array with U node IDs
+
+    # G = SimpleWeightedDiGraph(V+1)
+
+    return 0
+end
+
 function projOpt(S_step_t, P_min, P_max, Y_step_t, C, cache_capacity)
     # Minimum norm subproblem for S projection
     dim_S = size(S_step_t, 1) # length of power vector
