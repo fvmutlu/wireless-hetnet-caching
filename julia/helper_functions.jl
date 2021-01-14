@@ -1,7 +1,13 @@
 include("basic_functions.jl")
-using Convex, SCS, Random, Distributions, Dates, Combinatorics
+using Convex, SCS, Random, Distributions, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
 
-function cellGraph(V,SC,R_cell)
+struct network_graph # Will add more fields if necessary
+    paths::Array{Array{Int64,1},2}
+    gains::Array{Float64,2}
+    sc_nodes::Array{Int64,2}
+end
+
+function cellGraph(V, SC, R_cell, pathloss_exponent, C_sc, C_mc)
     U = V-SC-1 # Number of users
     V_pos = zeros(Float64, V, 3) # Last column is node type identifier MC = 0, SC = 1, U = 2
     SC_pos = zeros(Float64, SC, 2) # No need for identifier, all SCs
@@ -21,10 +27,9 @@ function cellGraph(V,SC,R_cell)
     # Mark SC nodes
     sc_nodes = zeros(Int64, 1, SC)
     sc_count = 0
-    # Assign random node to be first SC
-    while (sc_count == 0)
+    while (sc_count == 0) # Assign random node to be first SC
         rand_node = rand(2:V)
-        if sqrt(V_pos[rand_node, 1]^2 + V_pos[rand_node, 2]^2) > R_sc
+        if sqrt(V_pos[rand_node, 1]^2 + V_pos[rand_node, 2]^2) > R_sc # Mark the node as SC only if it is a certain distance away from the MC (what if all of them are closer?)
             sc_nodes[1] = rand_node; # Assign node ID in sc_nodes array
             SC_pos[1,:] = V_pos[rand_node,[1 2]] # Assign node position in SC positions array
             V_pos[rand_node,3] = 1 # Mark node as SC
@@ -46,11 +51,45 @@ function cellGraph(V,SC,R_cell)
         R_sc = R_sc - R_sc/5 # Decrease R_sc by %20 at each iteration (the while guarantees that if there are enough SC this loop will not repeat)
     end
 
-    # u_nodes = findall(i->!(i in sc_nodes),2:V) # Create array with U node IDs
+    # Create the routing graph
+    G = SimpleWeightedGraph(V+1)
+    non_mc_nodes = 2:V
+    u_nodes = zeros(Int64, 1, U)
+    u_nodes[1,:] = non_mc_nodes[findall(i->!(i in sc_nodes),non_mc_nodes)] # Create array with U node IDs
+    for u in u_nodes # Add an edge from each U to its associated SC
+        dist_to_sc = transpose(sqrt.(sum((SC_pos .- V_pos[u, [1 2]]) .^ 2, dims=2))) # Calculate the distance from this u to all SCs
+        dist_to_mc = sqrt(sum(V_pos[u, [1 2]] .^ 2, dims=2))[1] # Calculate the distance from this U to MC
+        if minimum(dist_to_sc) < dist_to_mc # If the closest SC is closer than MC
+            add_edge!(G, u, sc_nodes[argmin(dist_to_sc)], max(1, minimum(dist_to_sc)^pathloss_exponent)) # add_edge!(Graph, Node 1 of Edge, Node 2 of Edge, Cost of Edge)
+        else # If MC is closer
+            add_edge!(G, u, 1, max(1, dist_to_mc^pathloss_exponent))
+        end
+    end
+    for sc_pair in collect(combinations(sc_nodes,2)) # Add edge between every pair of SCs
+        dist = sqrt(sum((V_pos[sc_pair[1], [1 2]] - V_pos[sc_pair[2], [1 2]]) .^ 2, dims=2))[1] # Calculate distance between the two SCs
+        add_edge!(G, sc_pair[1], sc_pair[2], max(1, dist^pathloss_exponent)) 
+    end
+    for sc in sc_nodes # Add edge between MC and each SC, then backhaul (V+1) and each SC
+        dist_to_mc = sqrt(sum(V_pos[sc, [1 2]] .^ 2, dims=2))[1] # Calculate the distance between this sc and MC
+        add_edge!(G, sc, 1, max(1, dist_to_mc^pathloss_exponent))
+        add_edge!(G, sc, V+1, C_sc)
+    end
+    add_edge!(G, 1, V+1, C_mc) # Add edge between MC and backhaul
 
-    # G = SimpleWeightedDiGraph(V+1)
+    paths = fill(Int64[],1,U) # Array of arrays for paths (replaces the cell from MATLAB here)
+    for u in 1:U
+        paths[u] = enumerate_paths(dijkstra_shortest_paths(G,u_nodes[u]),V+1)
+    end
 
-    return 0
+    # Determine gains between every pair of nodes for interference calculation purposes
+    gains = zeros(Float64, V, V)
+    for v in 1:V, u in 1:V
+        dist = sqrt(sum((V_pos[v, [1 2]] - V_pos[u, [1 2]]) .^ 2, dims=2))[1] # Calculate distance between the two nodes
+        gains[v,u] = min(1, dist ^ (-pathloss_exponent))
+    end
+
+    netgraph = network_graph(paths, gains, sc_nodes)
+    return netgraph
 end
 
 function projOpt(S_step_t, P_min, P_max, Y_step_t, C, cache_capacity)
