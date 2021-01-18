@@ -1,13 +1,14 @@
 include("basic_functions.jl")
-using Convex, SCS, Random, Distributions, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
+using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
 
 struct network_graph # Will add more fields if necessary
     paths::Array{Array{Int64,1},2}
+    edges::Array{Int64,2}
     gains::Array{Float64,2}
     sc_nodes::Array{Int64,2}
 end
 
-function cellGraph(V, SC, R_cell, pathloss_exponent, C_sc, C_mc)
+function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Float64, C_sc::Float64, C_mc::Float64)
     U = V-SC-1 # Number of users
     V_pos = zeros(Float64, V, 3) # Last column is node type identifier MC = 0, SC = 1, U = 2
     SC_pos = zeros(Float64, SC, 2) # No need for identifier, all SCs
@@ -76,7 +77,7 @@ function cellGraph(V, SC, R_cell, pathloss_exponent, C_sc, C_mc)
     end
     add_edge!(G, 1, V+1, C_mc) # Add edge between MC and backhaul
 
-    paths = fill(Int64[],1,U) # Array of arrays for paths (replaces the cell from MATLAB here)
+    paths = fill(Int64[], 1, U) # Array of arrays for paths (replaces the cell from MATLAB here)
     for u in 1:U
         paths[u] = enumerate_paths(dijkstra_shortest_paths(G,u_nodes[u]),V+1)
     end
@@ -88,8 +89,35 @@ function cellGraph(V, SC, R_cell, pathloss_exponent, C_sc, C_mc)
         gains[v,u] = min(1, dist ^ (-pathloss_exponent))
     end
 
-    netgraph = network_graph(paths, gains, sc_nodes)
+    # Extract wireless edges that are involved in paths (Eₚ) (we will call this array 'edges' from now on since this is the set of edges of primary importance)
+    numof_edges = sum(length.(paths)) - 2*length(paths) # First we get the total number of edges (excluding backhaul) with potential duplicates so that we can determine the upper bound in order to allocate the array accordingly
+    edges = zeros(Int64, numof_edges, 2) # We allocate the edges array using the above number
+    marker = 0
+    for p in paths
+        plen = length(p)-1 # Exclude the backhaul node
+        for k = 1:plen-1
+            pk = p[k]
+            pk_next = p[k+1]
+            edges[marker+k, :] = [pk_next, pk]
+        end
+        marker = marker + plen - 1;
+    end
+    edges = unique(edges,dims=1)
+
+    netgraph = network_graph(paths, edges, gains, sc_nodes)
     return netgraph
+end
+
+function randomRequests(pd::Array{Float64,1}, numof_requests::Int64, base_rate::Float64)
+    requested_items = zeros(Int64, 1, numof_requests)
+    request_rates = zeros(Float64, 1, numof_requests)
+    w = ProbabilityWeights(pd) # Convert the probability distribution pd (which defines a discrete random variable that contains all sequential integer values in the range 1:M) where M is the size of the set of items
+    for r in 1:numof_requests # Iterate over all requests
+        x = sample(1:length(pd),w) # Sample an item from the ordered list of items {1, 2, ..., M-1, M} according to the probability distribution pd
+        requested_items[1, r] = x # Assign sampled item as the requested item for this request
+        request_rates[1, r] = base_rate + pd[x] # Calculate the request rate (λ) (NOTE: The calculation here is a valid but dumb one, it could be much smarter but that would be determined by the network)
+    end
+    return requested_items, request_rates
 end
 
 function projOpt(S_step_t, P_min, P_max, Y_step_t, C, cache_capacity)
