@@ -3,7 +3,7 @@ include("helper_functions.jl")
 
 using ForwardDiff
 
-function symSetup(netgraph, params)
+function funcSetup(netgraph, params)
     paths = netgraph.paths
     edges = netgraph.edges
     gains = netgraph.gains
