@@ -1,29 +1,21 @@
-using SymEngine
+include("symbolic_setup.jl")
 
-include("basic_functions.jl")
+using ForwardDiff
 
-#= x = symbols(:x)
-function loopSin(n)
-    for i in 0:n
-        a = sin(pi/(x^log(i+1)))
-        a = a(x=>1.02)
-    end
-end
+params = (noise = 1.0, numof_requests = 6, V = 10, M = 5, D_bh_mc = 1.5, D_bh_sc = 2.5)
+netgraph = cellGraph(10, 3, 5.0, 4.0, 200.0, 100.0)
 
-@time loopSin(10)
-@time loopSin(100)
-@time loopSin(1000) =#
+numof_edges = size(netgraph.edges, 1)
+numof_hops = sum(length.(netgraph.paths)) - length(netgraph.paths)
 
-x = [symbols("x_$i") for i in 1:5]
-F = [x[1]*x[2], x[1]^2, x[4]^2 - x[3] + 2*x[1], x[3]^3, x[5]-x[2]^2+5*x[3], x[4]^4, x[1]+x[3]+x[5]]
+S = 10*rand(Float64, numof_edges)
+Y = rand(Float64, 50)
 
-#println(diff(F[1],x[1]))
-#gradF = @time grad(F,x)
-a = [1; 2; 3; 4; 5]
-b = ones(Int64,1,5)
-b*x
-#subs.(F,x[1]=>a[1])
-#@time matSubs(gradF,x,a)
+SINR, F, Gprime, grad_S_F, subgrad_Y_G = symSetup(netgraph, params)
 
+println(typeof(grad_S_F))
+println(typeof(subgrad_Y_G))
+
+# hcat([ grad_S_F[i](S) for i in 1:numof_hops ]...)
     
     
