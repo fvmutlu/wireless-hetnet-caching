@@ -1,4 +1,3 @@
-include("basic_functions.jl")
 using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
 
 struct network_graph # Will add more fields if necessary
@@ -120,7 +119,12 @@ function randomRequests(pd::Array{Float64,1}, numof_requests::Int64, base_rate::
     return requested_items, request_rates
 end
 
-function projOpt(S_step_t, P_min, P_max, Y_step_t, C, cache_capacity)
+function projOpt(S_step_t, Y_step_t, consts)
+    P_min = consts.P_min
+    P_max = consts.P_max
+    C = consts.C
+    cache_capacity = consts.cache_capacity
+
     # Minimum norm subproblem for S projection
     dim_S = size(S_step_t, 1) # length of power vector
     S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
@@ -133,7 +137,7 @@ function projOpt(S_step_t, P_min, P_max, Y_step_t, C, cache_capacity)
     problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
     solve!(problem, SCS.Optimizer)
     
-    return [evaluate(S_proj_t), evaluate(Y_proj_t)]
+    return evaluate(S_proj_t), evaluate(Y_proj_t)
 end
 
 function randomInitPoint(dim_S, dim_Y, P_min, P_max, C, cache_capacity, weight)

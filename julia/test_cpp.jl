@@ -1,21 +1,38 @@
-include("symbolic_setup.jl")
+V = 10
+SC = 3
+U = V - SC - 1
+M = 5
+D_bh_mc = 1.5
+D_bh_sc = 2.5
+c_mc = 3
+c_sc = 2
+P_min = 1
+P_max = 15
 
-using ForwardDiff
-
-params = (noise = 1.0, numof_requests = 6, V = 10, M = 5, D_bh_mc = 1.5, D_bh_sc = 2.5)
+params = (noise = 1.0, numof_requests = U, V = V, M = M, D_bh_mc = D_bh_mc, D_bh_sc = D_bh_sc)
 netgraph = cellGraph(10, 3, 5.0, 4.0, 200.0, 100.0)
 
 numof_edges = size(netgraph.edges, 1)
 numof_hops = sum(length.(netgraph.paths)) - length(netgraph.paths)
 
-S = 10*rand(Float64, numof_edges)
-Y = rand(Float64, 50)
+numof_initpoints = 10
 
-SINR, F, Gprime, grad_S_F, subgrad_Y_G = symSetup(netgraph, params)
+S_0 = [ 10*rand(Float64, numof_edges) for i in 1:numof_initpoints ]
+Y_0 = [ rand(Float64, 50) for i in 1:numof_initpoints ]
 
-println(typeof(grad_S_F))
-println(typeof(subgrad_Y_G))
+cc = zeros(Int64, V,1)
+cc[1] = c_mc
+cc[netgraph.sc_nodes, 1] .= c_sc
 
-# hcat([ grad_S_F[i](S) for i in 1:numof_hops ]...)
+Cmat = zeros(Int64, V,M*V) # For cache capacity constraint C*Y <= cache_capacity
+for n in 1:V
+    Cmat[ n, (n-1)*M+1 : n*M ] .= 1 # In matrix C, mark entries corresponding to node n's items as 1
+end
+
+consts = (P_min = P_min, P_max = P_max, cache_capacity = cc, C = Cmat)
+
+funcs = funcSetup(netgraph, params)
+
+D_opt = subMethod(S_0, Y_0, funcs, consts)
     
     

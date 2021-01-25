@@ -1,4 +1,3 @@
-include("basic_functions.jl")
 include("helper_functions.jl")
 
 using ForwardDiff
@@ -75,5 +74,5 @@ function funcSetup(netgraph, params)
     grad_S_F = [ S -> ForwardDiff.gradient(F[i], S) for i in 1:numof_hops ]
     subgrad_Y_G = [ Y ->  ForwardDiff.gradient(G[i], Y) for i in 1:numof_hops] # ForwardDiff takes one extreme of the subdifferential range, just as in the equivalent MATLAB function
 
-    return SINR, F, Gprime, G, grad_S_F, subgrad_Y_G
+    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G)
 end
