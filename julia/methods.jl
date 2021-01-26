@@ -6,22 +6,22 @@ const epsilon = 1e-2
 const epsilon_S = 0.5*1e-2
 const epsilon_Y = 0.5*1e-3
 
-function subMethod(S_0, Y_0, funcs, consts)
-    @assert length(S_0) == length(Y_0) "Number of initial points for power and caching variables don't match"
-    numof_initpoints = length(S_0)
+function subMethod(SY_0, funcs, consts)
+    numof_initpoints = length(SY_0)
     F = funcs.F
     grad_S_F = funcs.grad_S_F
     G = funcs.G
     subgrad_Y_G = funcs.subgrad_Y_G
 
     D_best_sub = Inf
-    for i in 1:numof_initpoints
-        D_0 = sum([ F[m](S_0[i]) for m in 1:length(F) ] .* [ G[n](Y_0[i]) for n in 1:length(G) ])
-        S_t = S_0[i]
-        Y_t = Y_0[i]
+    for (S_0, Y_0) in SY_0
+        D_0 = sum([ F[m](S_0) for m in 1:length(F) ] .* [ G[n](Y_0) for n in 1:length(G) ])
+        S_t = S_0
+        Y_t = Y_0
         S_t_prev = S_t
         Y_t_prev = Y_t
         D_t = D_0
+
         D_hat_t = Inf
         delta = D_t/2
         div_ctr = 0
@@ -65,26 +65,29 @@ function subMethod(S_0, Y_0, funcs, consts)
             S_best_sub = S_t
             Y_best_sub = Y_t
         end
+        println(D_t)
     end
     return D_best_sub
 end
 
-function altMethod(S_0, Y_0, funcs)
-    @assert length(S_0) == length(Y_0) "Number of initial points for power and caching variables don't match"
-    numof_initpoints = length(S_0)
+function altMethod(SY_0, funcs, consts)
+    numof_initpoints = length(SY_0)
     F = funcs.F
     grad_S_F = funcs.grad_S_F
     G = funcs.G
     subgrad_Y_G = funcs.subgrad_Y_G
 
     D_best_alt = Inf
-    for i in 1:numof_initpoints
-        D_0 = sum([ F[m](S_0[i]) for m in 1:length(F) ] .* [ G[n](Y_0[i]) for n in 1:length(G) ])
-        S_t = S_0[i]
-        Y_t = Y_0[i]
+    D_best_prev_alt = Inf
+    for (S_0, Y_0) in SY_0
+        D_0 = sum([ F[m](S_0) for m in 1:length(F) ] .* [ G[n](Y_0) for n in 1:length(G) ])
+        S_t = S_0
+        Y_t = Y_0
         S_t_prev = S_t
         Y_t_prev = Y_t
         D_t = D_0
+
+        iter = 0
         while iter == 0 || abs(D_best_prev_alt - D_best_alt) >= epsilon # Outer loop for alternating method
             D_hat_t = Inf
             delta = D_t/2
@@ -132,7 +135,7 @@ function altMethod(S_0, Y_0, funcs)
                 d_Y_t = hcat([ subgrad_Y_G[m](Y_t) for m in 1:numof_hops ]...) * ([ F[n](S_t) for n in 1:length(F) ]) # Subgradient of D w.r.t Y evaluated at (Y_t,S_t)
                 step_size_Y = (D_t - D_hat_t + delta) / (norm(d_Y_t)^2) # Polyak step size calculation
                 Y_step_t = Y_t - step_size_Y*d_Y_t # Take step for Y
-                S_proj_t, Y_proj_t = projOpt(S_t, P_min, P_max, Y_step_t, C, cache_capacity); # Projection (ignore S_proj_t for caching step)
+                S_proj_t, Y_proj_t = projOpt(S_t, Y_step_t, consts); # Projection (ignore S_proj_t for caching step)
                 Y_t_prev = Y_t # We need to save Y^t for the while condition
                 Y_t = Y_proj_t # Y^{t+1} = \bar{Y}^t
                 D_t = sum([ F[m](S_t) for m in 1:length(F) ] .* [ G[n](Y_t) for n in 1:length(G) ]) # Calculate the objective for iteration t
@@ -154,12 +157,15 @@ function altMethod(S_0, Y_0, funcs)
                 end
                 t += 1
             end
+            D_best_prev_alt = D_best_alt
+            if D_t < D_best_alt # Set new best point out of all initial points
+                D_best_alt = D_t
+                S_best_alt = S_t
+                Y_best_alt = Y_t
+            end
+            iter += 1
         end
-        if D_t < D_best_alt # Set new best point out of all initial points
-            D_best_alt = D_t
-            S_best_alt = S_t
-            Y_best_alt = Y_t
-        end
+        println(D_best_alt)
     end
     return D_best_alt
 end

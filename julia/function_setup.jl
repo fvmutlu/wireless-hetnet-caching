@@ -18,8 +18,8 @@ function funcSetup(netgraph, params)
     numof_hops = sum(length.(paths)) - length(paths) # Number of wireless nodes involved in paths, with duplicates, backhaul excluded
     numof_edges = size(edges,1) # Number of wireless edges involved in paths, no duplicates
 
-    pd = fill(1/M, 5) # uniform dist
-    requested_items, request_rates = randomRequests(pd, numof_requests, 1.0)
+    pd = fill(1/M, M) # uniform dist
+    requested_items, request_rates = randomRequests(pd, numof_requests, 1.0) # The last argument is base request rate argument
 
     # Set up function F
     SINR = Array{Function}(undef, numof_edges) # We need the SINR functions first

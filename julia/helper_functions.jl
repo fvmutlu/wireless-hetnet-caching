@@ -7,7 +7,7 @@ struct network_graph # Will add more fields if necessary
     sc_nodes::Array{Int64,2}
 end
 
-function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Float64, C_sc::Float64, C_mc::Float64)
+function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Float64, C_mc::Float64, C_sc::Float64)
     U = V-SC-1 # Number of users
     V_pos = zeros(Float64, V, 3) # Last column is node type identifier MC = 0, SC = 1, U = 2
     SC_pos = zeros(Float64, SC, 2) # No need for identifier, all SCs
@@ -129,19 +129,21 @@ function projOpt(S_step_t, Y_step_t, consts)
     dim_S = size(S_step_t, 1) # length of power vector
     S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
     problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl)
-    solve!(problem, SCS.Optimizer) # use SCS solver (Convex.jl, SCS.jl)
+    solve!(problem, SCS.Optimizer(verbose=false)) # use SCS solver (Convex.jl, SCS.jl)
 
     # Minimum norm subproblem for Y projection
     dim_Y = size(Y_step_t,1)
     Y_proj_t = Variable(dim_Y)
     problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
-    solve!(problem, SCS.Optimizer)
+    solve!(problem, SCS.Optimizer(verbose=false))
     
     return evaluate(S_proj_t), evaluate(Y_proj_t)
 end
 
-function randomInitPoint(dim_S, dim_Y, P_min, P_max, C, cache_capacity, weight)
+function randomInitPoint(dim_S, dim_Y, weight, consts)
     Random.seed!(Dates.value(Dates.now())) # set the seed with current system time
+    P_min = consts.P_min
+    P_max = consts.P_max
 
     # Randomized initial point for power vector
     mean = (P_max + P_min)/2 + (P_max + P_min)*weight/2
@@ -153,9 +155,9 @@ function randomInitPoint(dim_S, dim_Y, P_min, P_max, C, cache_capacity, weight)
     mean = 0.5 + 0.5*weight/2
     var = 0.1
     pd = Normal(mean, var)
-    Y_0 = rand(pd,dim_Y)
+    Y_0 = rand(pd, dim_Y)
 
-    return projOpt(S_0, P_min, P_max, Y_0, C, cache_capacity)
+    return projOpt(S_0, Y_0, consts)
 end
 
 function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
@@ -176,7 +178,7 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                     y[y_frac_pair_ind] = 0
                 end
             else
-                DO_best = 9999999999.9;
+                DO_best = Inf;
                 y_best = [0.0 0.0]
 
                 for pair_ind_temp in collect(combinations(y_frac_pair_ind, 2))
@@ -238,7 +240,7 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                     end
                 end
                 y = round.(y_best); # If no cases had better than the current objective, this will just pick the best result out of all trials.
-                # We round because the results from projection can be arbitrarily close to 1 or 0 while they should be exactly 1 or 0 (e.g. 0.9999999875 or 4.57987363e-11), I suspect this is due to inner workings of Convex.jl
+                # We round because the results from projection can be arbitrarily close to 1 or 0 while they should be exactly 1 or 0 (e.g. 0.9999999875 or 4.57987363e-11), good old floating point operations
             end
         end
         Y_matrix[:,v] = y
