@@ -14,11 +14,11 @@ function funcSetup(netgraph, params)
     M = params.M
     D_bh_mc = params.D_bh_mc
     D_bh_sc = params.D_bh_sc
+    pd = params.pd
 
     numof_hops = sum(length.(paths)) - length(paths) # Number of wireless nodes involved in paths, with duplicates, backhaul excluded
     numof_edges = size(edges,1) # Number of wireless edges involved in paths, no duplicates
-
-    pd = fill(1/M, M) # uniform dist
+    
     requested_items, request_rates = randomRequests(pd, numof_requests, 1.0) # The last argument is base request rate argument
 
     # Set up function F
@@ -60,12 +60,9 @@ function funcSetup(netgraph, params)
         for k in 1:plen
             pk = p[k]
             Gprime[gp_marker + k] = Y -> 1 - min(Y[ (pk-1)*M + i ], 1) # Establish symbolic function G' for kth node along path p ( 1 - min(y,1) )
-            Gintegral[gp_marker + k] = Y -> 1
-            for l in 1:k
-                pl = p[l]
-                A[ (pk-1)*M + i, (pl-1)*M + i] = 1 # In matrix A, mark entries corresponding to all nodes on path p before pk as 1
-                Gintegral[gp_marker + k] = Y -> Gintegral[gp_marker + k] * (1 - Y[ (pl-1)*M + i]) # ROUNDING TEST
-            end
+            pl = p[1:k]
+            Gintegral[gp_marker + k] = Y -> prod(1 .- Y[ (pl .- 1) .* M .+ i])
+            A[ (pk-1)*M + i, (pl .- 1) .* M .+ i] .= 1
         end
         gp_marker = gp_marker + plen # Mark all G' functions related to path p as computed
     end    
@@ -74,5 +71,5 @@ function funcSetup(netgraph, params)
     grad_S_F = [ S -> ForwardDiff.gradient(F[i], S) for i in 1:numof_hops ]
     subgrad_Y_G = [ Y ->  ForwardDiff.gradient(G[i], Y) for i in 1:numof_hops] # ForwardDiff takes one extreme of the subdifferential range, just as in the equivalent MATLAB function
 
-    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G)
+    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G, Gintegral = Gintegral)
 end

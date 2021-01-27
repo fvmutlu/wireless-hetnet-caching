@@ -160,7 +160,7 @@ function randomInitPoint(dim_S, dim_Y, weight, consts)
     return projOpt(S_0, Y_0, consts)
 end
 
-function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
+function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
     Y_matrix = reshape(Y_opt, (M, V)) # put the caching vector into matrix form
     epsilon = 1e-3
     for v in 1:V # repeat for all nodes 
@@ -192,8 +192,8 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                         y_temp[pair_ind_temp] = [0 y1+y2]
                         Y_temp = Y_matrix
                         Y_temp[:,v] = y_temp
-                        Y_temp = reshape(Y_temp, (M*V, 1))                        
-                        DO_temp = dot(F(S_opt),Gintegral(Y_temp))                        
+                        Y_temp = vcat(Y_temp...)
+                        DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])                        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
                             y_best = y_temp
@@ -205,8 +205,8 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                         y_temp[pair_ind_temp] = [1 y2 - (1 - y1)]
                         Y_temp = Y_matrix
                         Y_temp[:,v] = y_temp
-                        Y_temp = reshape(Y_temp, (M*V,1))                        
-                        DO_temp = dot(F(S_opt),Gintegral(Y_temp))                        
+                        Y_temp = vcat(Y_temp...)                       
+                        DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])                        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
                             y_best = y_temp
@@ -218,8 +218,8 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                         y_temp[pair_ind_temp] = [y1+y2 0]
                         Y_temp = Y_matrix
                         Y_temp[:,v] = y_temp
-                        Y_temp = reshape(Y_temp, (M*V,1))                        
-                        DO_temp = dot(F(S_opt),Gintegral(Y_temp))
+                        Y_temp = vcat(Y_temp...)                      
+                        DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
                             y_best = y_temp
@@ -231,8 +231,8 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
                         y_temp[pair_ind_temp] = [y1-(1-y2) 1]
                         Y_temp = Y_matrix
                         Y_temp[:,v] = y_temp
-                        Y_temp = reshape(Y_temp, (M*V,1))                        
-                        DO_temp = dot(F(S_opt),Gintegral(Y_temp))                        
+                        Y_temp = vcat(Y_temp...)                     
+                        DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
                             y_best = y_temp
@@ -245,5 +245,13 @@ function pipageRound(F, Gintegral, Y_opt, S_opt, M, V, cache_capacity)
         end
         Y_matrix[:,v] = y
     end
-    return reshape(Y_matrix, (M*V,1))
+    return vcat(Y_matrix...)
+end
+
+function isbinary(x)
+    if (x==0 || x==1)
+        return true
+    else
+        return false
+    end
 end
