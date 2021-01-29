@@ -1,4 +1,5 @@
 include("methods.jl")
+import Base.Threads.@spawn
 using Printf
 
 ## Constraint parameters
@@ -42,15 +43,36 @@ function runSim(numof_edges, numof_initpoints, funcs, consts, params)
     weight = (i, N) -> ( i - ( (N + 1) / 2) ) / (N - 1)
     SY_0 = [ randomInitPoint(numof_edges, M*V, weight(i, numof_initpoints), consts) for i in 1:numof_initpoints ]
     println(" -- SUB -- ")
-    (D_opt, S_opt, Y_opt) = subMethod(SY_0, funcs, consts)
+    (D_opt, S_opt, Y_opt) = @time subMethod(SY_0, funcs, consts)
+    X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, params.V, consts.cache_capacity)
+    D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+    println(" -- SUBMULT -- ")
+    (D_opt, S_opt, Y_opt) = @time subMethodMult(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, params.V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
     println(" -- ALT --")
-    (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
+    (D_opt, S_opt, Y_opt) = @time altMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, params.V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
 end
 
-    
+function runSimMult(numof_edges, numof_initpoints, funcs, consts, params)
+    weight = (i, N) -> ( i - ( (N + 1) / 2) ) / (N - 1)
+    SY_0 = [ randomInitPoint(numof_edges, M*V, weight(i, numof_initpoints), consts) for i in 1:numof_initpoints ]
+    println(" -- Simulation begins -- ")
+    t1 = @spawn subMethod(SY_0, funcs, consts)
+    t2 = @spawn altMethod(SY_0, funcs, consts)
+    println(" -- SUB -- ")
+    (D_opt, S_opt, Y_opt) = fetch(t1)
+    X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, params.V, consts.cache_capacity)
+    D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+    println(" -- ALT -- ")
+    (D_opt, S_opt, Y_opt) = fetch(t2)    
+    X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, params.V, consts.cache_capacity)
+    D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+end
