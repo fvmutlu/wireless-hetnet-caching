@@ -1,0 +1,12 @@
+20 # V
+4 # SC
+10 # M
+8 # c_mc
+4 # c_sc
+0 # pd_type
+1.0 # P_min
+200.0 # P_max
+4.0 # pathloss_exponent
+1.0 # noise
+4.0 # R_cell
+0.1 # pd_param
