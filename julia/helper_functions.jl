@@ -4,11 +4,14 @@ struct network_graph # Will add more fields if necessary
     paths::Array{Array{Int64,1},2}
     edges::Array{Int64,2}
     gains::Array{Float64,2}
-    sc_nodes::Array{Int64,2}
+    sc_nodes::Array{Int64,1}
+    V_pos::Array{Float64,2}
+    SC_pos::Array{Float64,2}
 end
 
 function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Float64, C_mc::Float64, C_sc::Float64)
     U = V-SC-1 # Number of users
+
     V_pos = zeros(Float64, V, 3) # Last column is node type identifier MC = 0, SC = 1, U = 2
     SC_pos = zeros(Float64, SC, 2) # No need for identifier, all SCs
     R_sc = R_cell / 2 # Initial coverage for SCs, avoid placing another SC in this range
@@ -25,7 +28,7 @@ function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Floa
     V_pos[2:V,3] .= 2 # Mark all non-MC nodes as U first
 
     # Mark SC nodes
-    sc_nodes = zeros(Int64, 1, SC)
+    sc_nodes = zeros(Int64, SC)
     sc_count = 0
     while (sc_count == 0) # Assign random node to be first SC
         rand_node = rand(2:V)
@@ -57,7 +60,8 @@ function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Floa
     u_nodes = zeros(Int64, 1, U)
     u_nodes[1,:] = non_mc_nodes[findall(i->!(i in sc_nodes),non_mc_nodes)] # Create array with U node IDs
     for u in u_nodes # Add an edge from each U to its associated SC
-        dist_to_sc = transpose(sqrt.(sum((SC_pos .- V_pos[u, [1 2]]) .^ 2, dims=2))) # Calculate the distance from this u to all SCs
+        #dist_to_sc = transpose(sqrt.(sum((SC_pos .- V_pos[u, [1 2]]) .^ 2, dims=2))) # Calculate the distance from this u to all SCs
+        dist_to_sc = sqrt.(sum((SC_pos .- V_pos[u, [1 2]]) .^ 2, dims=2)) # Calculate the distance from this u to all SCs
         dist_to_mc = sqrt(sum(V_pos[u, [1 2]] .^ 2, dims=2))[1] # Calculate the distance from this U to MC
         if minimum(dist_to_sc) < dist_to_mc # If the closest SC is closer than MC
             add_edge!(G, u, sc_nodes[argmin(dist_to_sc)], max(1, minimum(dist_to_sc)^pathloss_exponent)) # add_edge!(Graph, Node 1 of Edge, Node 2 of Edge, Cost of Edge)
@@ -103,8 +107,37 @@ function cellGraph(V::Int64, SC::Int64, R_cell::Float64, pathloss_exponent::Floa
     end
     edges = unique(edges,dims=1)
 
-    netgraph = network_graph(paths, edges, gains, sc_nodes)
+    netgraph = network_graph(paths, edges, gains, sc_nodes, V_pos, SC_pos)
     return netgraph
+end
+
+function incSC(netgraph::network_graph, R_cell::Float64)
+    V = size(netgraph.V_pos, 1) + 1
+    SC = length(netgraph.sc_nodes) + 1
+    R_sc = R_cell / 2
+    
+    norm = 0;
+    new_V_pos = vcat(netgraph.V_pos, [0 0 0])
+    new_SC_pos = vcat(netgraph.SC_pos, [0 0])
+    while new_V_pos[V,3] == 0 || ((new_V_pos[V, 1] == 0) && (new_V_pos[V, 2] == 0))
+        points = 2 * R_cell .* rand(Float64,20,2) .- R_cell # Generate point in interval (-R_cell, R_cell) and assign to x for node v's position
+        norm = sqrt.(points[:, 1].^2 + points[:, 2].^2) # Calculate norm to make sure point is within cell
+        indices = findall(x -> x < R_cell, norm)
+        points = points[indices, :]
+        dist_to_sc = [ sqrt.(sum((netgraph.SC_pos .- points[i, [1 2]]) .^ 2, dims=2)) for i in 1:length(indices) ]
+        indices = findall(x -> all(y -> y > R_sc, x), dist_to_sc)
+        if !isempty(indices)
+            points = points[indices, :]
+            dist_to_sc = sum.(dist_to_sc[indices])
+            ind = argmin(dist_to_sc)
+            new_SC_pos[SC, :] = points[ind, [1 2]]
+            new_V_pos[V, :] = hcat(points[ind, [1 2]], 1)
+        else
+            R_sc = R_sc * 0.8
+        end              
+    end
+
+    return new_SC_pos
 end
 
 function randomRequests(pd::Array{Float64,1}, numof_requests::Int64, base_rate::Float64)
