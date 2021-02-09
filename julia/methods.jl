@@ -137,7 +137,7 @@ function subMethodMult(SY_0, funcs, consts)
     return (D_best_sub, S_best_sub, Y_best_sub)
 end
 
-function altMethod(SY_0, funcs, consts)
+function altMethod(SY_0, funcs, consts) # TODO: Find a way to parallelize single initial point ALT method
     numof_initpoints = length(SY_0)
     F = funcs.F
     grad_S_F = funcs.grad_S_F
@@ -148,7 +148,7 @@ function altMethod(SY_0, funcs, consts)
     S_best_alt = SY_0[1][1]
     Y_best_alt = SY_0[1][1]
     for (S_0, Y_0) in SY_0
-        D_0 = sum([ F[m](S_0) for m in 1:length(F) ] .* [ G[n](Y_0) for n in 1:length(G) ])
+        D_0 = sum([ F[m](S_0) for m in 1:length(F) ] .* [ G[n](Y_0) for n in 1:length(G) ]) # TODO: This comprehension may be parallelized (test for time?)
         S_t = S_0
         Y_t = Y_0
         S_t_prev = S_t
@@ -169,7 +169,7 @@ function altMethod(SY_0, funcs, consts)
             t = 0
             while t==0 || ( (abs(D_hat_t - D_t) >= epsilon) && (norm(S_t_prev - S_t) >= epsilon_S) )
                 D_hat_t = min(D_t, D_hat_t) # If current objective is the minimum so far, replace D_hat
-                d_S_t = hcat([ grad_S_F[m](S_t) for m in 1:length(grad_S_F) ]...) * [ G[n](Y_t) for n in 1:length(G) ] # Gradient of D w.r.t S evaluated at (Yₜ,Sₜ)
+                d_S_t = hcat([ grad_S_F[m](S_t) for m in 1:length(grad_S_F) ]...) * [ G[n](Y_t) for n in 1:length(G) ] # Gradient of D w.r.t S evaluated at (Yₜ,Sₜ) # TODO: This comprehension may be parallelized (test for time?)
                 step_size_S = (D_t - D_hat_t + delta) / (norm(d_S_t)^2) # Polyak step size calculation
                 S_step_t = S_t - step_size_S*d_S_t # Take step for S
                 S_proj_t, Y_proj_t = projOpt(S_step_t, Y_t, consts); # Projection (ignore Y_proj_t for power step)

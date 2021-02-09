@@ -2,24 +2,15 @@ include("helper_functions.jl")
 
 using ForwardDiff
 
-function funcSetup(netgraph, params)
+function funcSetup(netgraph::network_graph, reqs::requests, V::Int64, M::Int64, noise::Float64, D_bh_mc::Float64, D_bh_sc::Float64)
     paths = netgraph.paths
     edges = netgraph.edges
     gains = netgraph.gains
     sc_nodes = netgraph.sc_nodes
 
-    noise = params.noise
-    numof_requests = params.numof_requests
-    V = params.V
-    M = params.M
-    D_bh_mc = params.D_bh_mc
-    D_bh_sc = params.D_bh_sc
-    pd = params.pd
-
+    numof_requests = length(reqs.items)
     numof_hops = sum(length.(paths)) - length(paths) # Number of wireless nodes involved in paths, with duplicates, backhaul excluded
     numof_edges = size(edges,1) # Number of wireless edges involved in paths, no duplicates
-    
-    requested_items, request_rates = randomRequests(pd, numof_requests, 1.0) # The last argument is base request rate argument
 
     # Set up function F
     SINR = Array{Function}(undef, numof_edges) # We need the SINR functions first
@@ -33,7 +24,7 @@ function funcSetup(netgraph, params)
     f_marker = 0
     for (r, p) in enumerate(paths)
         plen = length(p) - 1 # Exclude backhaul node
-        lambda_i_p = request_rates[1, r]
+        lambda_i_p = reqs.rates[r]
         for k in 1:plen-1
             pk = p[k]
             pk_next = p[k + 1]
@@ -54,8 +45,8 @@ function funcSetup(netgraph, params)
     Gintegral = Array{Function}(undef, numof_hops)
     gp_marker = 0 # We need to establish G' functions, since the length of paths are variable we need to keep track of where we are in the following loop
     A = zeros(Int64, M*V, M*V) # For affine composition G(Y) = G'(AY)
-    for (r, p) in enumerate(paths) # Iterate over all paths and establish G' functions (length(paths) = length(requests) = U)
-        i = requested_items[r] # Item i requested by nth request
+    for (r, p) in enumerate(paths) # Iterate over all paths and establish G' functions (length(paths) = numof_requests [ = U for current case])
+        i = reqs.items[r] # Item i requested by nth request
         plen = length(p) - 1 # Exclude backhaul node
         for k in 1:plen
             pk = p[k]
@@ -71,5 +62,5 @@ function funcSetup(netgraph, params)
     grad_S_F = [ S -> ForwardDiff.gradient(F[i], S) for i in 1:numof_hops ]
     subgrad_Y_G = [ Y ->  ForwardDiff.gradient(G[i], Y) for i in 1:numof_hops] # ForwardDiff takes one extreme of the subdifferential range, just as in the equivalent MATLAB function
 
-    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G, Gintegral = Gintegral)
+    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G, Gintegral = Gintegral) # TODO: Make this "funcs" tuple into a type-defined struct
 end
