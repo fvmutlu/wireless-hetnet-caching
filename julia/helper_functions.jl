@@ -288,25 +288,34 @@ function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Arra
     return constraints(P_min, P_max, cache_capacity, C)
 end
 
-function projOpt(S_step_t, Y_step_t, consts::constraints)
+function projOpt(S_step_t, Y_step_t, consts::constraints) # TODO: Look into parallelizing this
     P_min = consts.P_min
     P_max = consts.P_max
     C = consts.C
     cache_capacity = consts.cache_capacity
 
     # Minimum norm subproblem for S projection
-    dim_S = size(S_step_t, 1) # length of power vector
-    S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
-    problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl)
-    solve!(problem, SCS.Optimizer(verbose=false)) # use SCS solver (Convex.jl, SCS.jl)
+    if S_step_t == 0 # Skip power optimization if all zeros were passed (relevant for ALT)
+        S_proj_t = 0
+    else
+        dim_S = size(S_step_t, 1) # length of power vector
+        S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
+        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl)
+        solve!(problem, SCS.Optimizer(verbose=false)) # use SCS solver (Convex.jl, SCS.jl)
+        S_proj_t = evaluate(S_proj_t)
+    end
 
     # Minimum norm subproblem for Y projection
-    dim_Y = size(Y_step_t,1)
-    Y_proj_t = Variable(dim_Y)
-    problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
-    solve!(problem, SCS.Optimizer(verbose=false))
-    
-    return evaluate(S_proj_t), evaluate(Y_proj_t)
+    if Y_step_t == 0
+        Y_proj_t = 0
+    else
+        dim_Y = size(Y_step_t,1)
+        Y_proj_t = Variable(dim_Y)
+        problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
+        solve!(problem, SCS.Optimizer(verbose=false))
+        Y_proj_t = evaluate(Y_proj_t)
+    end
+    return S_proj_t, Y_proj_t
 end
 
 function randomInitPoint(dim_S, dim_Y, weight, consts)

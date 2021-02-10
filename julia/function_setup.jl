@@ -62,5 +62,5 @@ function funcSetup(netgraph::network_graph, reqs::requests, V::Int64, M::Int64, 
     grad_S_F = [ S -> ForwardDiff.gradient(F[i], S) for i in 1:numof_hops ]
     subgrad_Y_G = [ Y ->  ForwardDiff.gradient(G[i], Y) for i in 1:numof_hops] # ForwardDiff takes one extreme of the subdifferential range, just as in the equivalent MATLAB function
 
-    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G, Gintegral = Gintegral) # TODO: Make this "funcs" tuple into a type-defined struct
+    return (F = F, grad_S_F = grad_S_F, G = G, subgrad_Y_G = subgrad_Y_G, Gintegral = Gintegral) # TODO: Make "funcs" tuple into a type-defined struct
 end

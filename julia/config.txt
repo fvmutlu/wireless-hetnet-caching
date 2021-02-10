@@ -1,9 +1,10 @@
-10 # V
-3 # SC
+40 # V
+10 # SC
 10 # M
 8 # c_mc
 4 # c_sc
 0 # pd_type
+1 # numof_initpoints
 1.0 # P_min
 200.0 # P_max
 4.0 # pathloss_exponent

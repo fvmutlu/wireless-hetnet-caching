@@ -1,6 +1,5 @@
 include("methods.jl")
-
-using Printf
+using Printf, ThreadsX
 
 mutable struct other_parameters
     M::Int64 # Total number of items in the catalog
@@ -8,6 +7,7 @@ mutable struct other_parameters
     numof_requests::Int64 # Total number of requests across all users (NAMED THIS WAY FOR FUTURE CONSIDERATION, FOR CURRENT CASE THIS IS ALWAYS EQUAL TO NUMBER OF USERS) 
     D_bh_mc::Float64 # MC-BH wireline link delay (LEFT HERE FOR POSSIBLE CUSTOM ADJUSTMENT, CURRENTLY CALCULATED VIA HEURISTICS USING POWER CONSTRAINTS AND NETWORK PARAMETERS)
     D_bh_sc::Float64 # SC-BH wireline link delay, same for all SCs (LEFT HERE FOR POSSIBLE CUSTOM ADJUSTMENT, CURRENTLY CALCULATED VIA HEURISTICS USING POWER CONSTRAINTS AND NETWORK PARAMETERS)
+    numof_initpoints::Int64 # Number of initial points to run the problem with
 end
 
 mutable struct network_parameters
@@ -29,8 +29,8 @@ end
 
 function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
     cfg = split.(readlines(input), " # ")
-    (V, SC, M, c_mc, c_sc, pd_type) = parse.(Int64, [ cfg[i][1] for i in 1:6 ])
-    (P_min, P_max, pathloss_exponent, noise, R_cell, pd_param) = parse.(Float64, [ cfg[i][1] for i in 7:12 ])
+    (V, SC, M, c_mc, c_sc, pd_type, numof_initpoints) = parse.(Int64, [ cfg[i][1] for i in 1:7 ])
+    (P_min, P_max, pathloss_exponent, noise, R_cell, pd_param) = parse.(Float64, [ cfg[i][1] for i in 8:13 ])
     
     U = V - SC - 1
     C_bh_mc = (R_cell/2)^pathloss_exponent # Cost at the wireline edge between backhaul to macro cell (calculated completely heuristically, there could be smarter way of determining this)
@@ -44,7 +44,7 @@ function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
         pd = (1 ./ (1:M).^ pd_param) / sum(1 ./ (1:M).^ pd_param)
     end
     
-    params = other_parameters(M, pd, U, D_bh_mc, D_bh_sc) # numof_requests = U FOR CURRENT CASE
+    params = other_parameters(M, pd, U, D_bh_mc, D_bh_sc, numof_initpoints) # numof_requests = U FOR CURRENT CASE
     netparams = network_parameters(V, SC, R_cell, pathloss_exponent, C_bh_mc, C_bh_sc, noise)
     constparams = constraint_parameters(P_min, P_max, c_mc, c_sc)
 
@@ -62,16 +62,16 @@ function newProblem(params::other_parameters = params, netparams::network_parame
 
     consts = makeConsts(netparams.V, params.M, constparams.c_mc, constparams.c_sc, findall(i -> i == 1, V_pos[:,3]), constparams.P_min, constparams.P_max)
 
-    return V_pos, netgraph, reqs, funcs, consts
+    weight = (i, N) -> (N != 1) * (( i - ( (N + 1) / 2) ) / (N - 1))
+    SY_0 = [ randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, weight(i, params.numof_initpoints), consts) for i in 1:params.numof_initpoints ]
+
+    return V_pos, netgraph, reqs, funcs, consts, SY_0
 end
 
 ## Run optimization over different initial points
 
-function runSim(numof_initpoints::Int64, numof_edges::Int64 = size(netgraph.edges,1), V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints = consts, funcs = funcs)
-    weight = (i, N) -> (N != 1) * (( i - ( (N + 1) / 2) ) / (N - 1))
-    SY_0 = [ randomInitPoint(numof_edges, V*M, weight(i, numof_initpoints), consts) for i in 1:numof_initpoints ]
-
-    println(" -- SUB -- ")
+function runSim(V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints = consts, funcs = funcs, SY_0 = SY_0)
+    #= println(" -- SUB -- ")
     (D_opt, S_opt, Y_opt) = @time subMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
@@ -81,17 +81,18 @@ function runSim(numof_initpoints::Int64, numof_edges::Int64 = size(netgraph.edge
     (D_opt, S_opt, Y_opt) = @time subMethodMult(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
-    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
 
     println(" -- ALT --")
     (D_opt, S_opt, Y_opt) = @time altMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+    # D_0 = @time sum( ThreadsX.collect(funcs.F[m](S_opt) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G)) )
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
 
-    println(" -- ALT MULT -- ")
+    #= println(" -- ALT MULT -- ")
     (D_opt, S_opt, Y_opt) = @time altMethodMult(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
-    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
 end
