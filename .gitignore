@@ -10,3 +10,9 @@ subgrad_Y_G.m
 
 # Workspace data files
 *.mat
+
+# Figures
+*.fig
+*.jpg
+*.jpeg
+*.png

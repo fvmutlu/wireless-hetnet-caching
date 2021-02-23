@@ -1,5 +1,7 @@
 using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
 
+import Base.Threads.@spawn
+
 struct network_graph # Will add more fields if necessary
     paths::Array{Array{Int64,1},2}
     edges::Array{Int64,2}
@@ -288,7 +290,7 @@ function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Arra
     return constraints(P_min, P_max, cache_capacity, C)
 end
 
-function projOpt(S_step_t, Y_step_t, consts::constraints) # TODO: Look into parallelizing this
+function projOpt(S_step_t, Y_step_t, consts::constraints)
     P_min = consts.P_min
     P_max = consts.P_max
     C = consts.C

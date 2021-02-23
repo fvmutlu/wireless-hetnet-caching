@@ -1,5 +1,5 @@
 include("methods.jl")
-using Printf, ThreadsX
+using Printf, Plots
 
 mutable struct other_parameters
     M::Int64 # Total number of items in the catalog
@@ -75,19 +75,18 @@ function runSim(V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints
     (D_opt, S_opt, Y_opt) = @time subMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
-    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
+    @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
 
-    println(" -- SUB MULT -- ")
+    #= println(" -- SUB MULT -- ")
     (D_opt, S_opt, Y_opt) = @time subMethodMult(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
 
     println(" -- ALT --")
-    (D_opt, S_opt, Y_opt) = @time altMethod(SY_0, funcs, consts)
+    (D_opt, S_opt, Y_opt) = @time altMethod(SY_0[1], funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
-    # D_0 = @time sum( ThreadsX.collect(funcs.F[m](S_opt) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G)) )
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0)
 
     #= println(" -- ALT MULT -- ")
@@ -95,4 +94,51 @@ function runSim(V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
+end
+
+function incScSim(inc_count::Int64, params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams)
+    results = zeros(Float64, inc_count+1)
+
+    V_pos, netgraph, reqs, funcs, consts, SY_0 = newProblem(params, netparams, constparams)
+    SY_0 = randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, 0, consts)
+
+    (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
+    X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, netparams.V, consts.cache_capacity)
+    D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+    results[1] = D_0;
+
+    for i in 2:inc_count+1
+        netparams.V += 1
+        netparams.SC += 1
+        V_pos = addSC(V_pos, netparams.R_cell)
+        netgraph = makeGraph(V_pos, netparams.pathloss_exponent, netparams.C_bh_mc, netparams.C_bh_sc)
+        funcs = funcSetup(netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
+        consts = makeConsts(netparams.V, params.M, constparams.c_mc, constparams.c_sc, findall(i -> i == 1, V_pos[:,3]), constparams.P_min, constparams.P_max)
+        SY_0 = randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, 0, consts)
+
+        (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
+        X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, netparams.V, consts.cache_capacity)
+        D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+        results[i] = D_0;
+    end
+
+    return plot((netparams.SC - inc_count):netparams.SC, results, title="Delay with increasing # of SCs", xlabel="# of SCs", ylabel="Delay")
+end
+
+function incPwrSim(pwr_lim::Float64, pwr_inc::Float64, params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams)
+    pwr_range = range(constparams.P_max, step = pwr_inc, stop = pwr_lim)
+    results = zeros(Float64, length(pwr_range))
+
+    V_pos, netgraph, reqs, funcs, consts, SY_0 = newProblem(params, netparams, constparams)
+    SY_0 = randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, 0, consts)
+
+    for (i, P_max) in enumerate(pwr_range)
+        consts = makeConsts(netparams.V, params.M, constparams.c_mc, constparams.c_sc, findall(i -> i == 1, V_pos[:,3]), constparams.P_min, P_max)
+        (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
+        X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, netparams.V, consts.cache_capacity)
+        D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
+        results[i] = D_0;
+    end
+
+    return plot(pwr_range, results, title="Delay with increasing Pmax", xlabel="Pmax", ylabel="Delay")
 end
