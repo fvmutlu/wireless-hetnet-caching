@@ -27,6 +27,15 @@ mutable struct constraint_parameters
     c_sc::Int64 # Cache capacity in number of items of SC
 end
 
+mutable struct problem_components
+    V_pos::Array{Float64,2}
+    netgraph::network_graph
+    reqs::requests
+    funcs
+    consts::constraints
+    SY_0::Array{Tuple{Array{Float64,1},Array{Float64,1}},1}
+end
+
 function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
     cfg = split.(readlines(input), " # ")
     (V, SC, M, c_mc, c_sc, pd_type, numof_initpoints) = parse.(Int64, [ cfg[i][1] for i in 1:7 ])
@@ -34,7 +43,7 @@ function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
     
     U = V - SC - 1
     C_bh_mc = (R_cell/2)^pathloss_exponent # Cost at the wireline edge between backhaul to macro cell (calculated completely heuristically, there could be smarter way of determining this)
-    C_bh_sc = 1.5 * C_bh_mc # Cost at the wireline edge between backhaul and any of the small cells (again, heuristic)
+    C_bh_sc = 2 * C_bh_mc # Cost at the wireline edge between backhaul and any of the small cells (again, heuristic)
     D_bh_mc = 1 / log( 1 + ((1/C_bh_mc)*P_max)/noise ) # Delay of data retrieval from backhaul to macro cell (again, computed heuristically using the wireline edge costs)
     D_bh_sc = 1 / log( 1 + ((1/C_bh_sc)*P_max*0.8)/noise ) # Delay of data retrieval from backhaul to any of the small cells (again, computed heuristically using the wireline edge costs)
     
@@ -65,12 +74,16 @@ function newProblem(params::other_parameters = params, netparams::network_parame
     weight = (i, N) -> (N != 1) * (( i - ( (N + 1) / 2) ) / (N - 1))
     SY_0 = [ randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, weight(i, params.numof_initpoints), consts) for i in 1:params.numof_initpoints ]
 
-    return V_pos, netgraph, reqs, funcs, consts, SY_0
+    #return V_pos, netgraph, reqs, funcs, consts, SY_0
+    return problem_components(V_pos, netgraph, reqs, funcs, consts, SY_0)
 end
 
 ## Run optimization over different initial points
 
-function runSim(V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints = consts, funcs = funcs, SY_0 = SY_0)
+function runSim(V::Int64 = netparams.V, M::Int64 = params.M, probcomps::problem_components = probcomps)
+    funcs = probcomps.funcs
+    consts = probcomps.consts
+    SY_0 = probcomps.SY_0
     #= println(" -- SUB -- ")
     (D_opt, S_opt, Y_opt) = @time subMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, M, V, consts.cache_capacity)
@@ -96,11 +109,17 @@ function runSim(V::Int64 = netparams.V, M::Int64 = params.M, consts::constraints
     @printf("Relaxed delay: %.2f || Rounded delay: %.2f\n", D_opt, D_0) =#
 end
 
-function incScSim(inc_count::Int64, params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams)
+function incScSim(inc_count::Int64, params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams, probcomps::problem_components = probcomps)
     results = zeros(Float64, inc_count+1)
 
-    V_pos, netgraph, reqs, funcs, consts, SY_0 = newProblem(params, netparams, constparams)
-    SY_0 = randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, 0, consts)
+    #V_pos, netgraph, reqs, funcs, consts, SY_0 = newProblem(params, netparams, constparams)
+    V_pos = probcomps.V_pos
+    netgraph = probcomps.netgraph
+    reqs = probcomps.reqs
+    funcs = probcomps.funcs
+    consts = probcomps.consts
+    SY_0 = probcomps.SY_0[1]
+    #SY_0 = randomInitPoint(size(netgraph.edges,1), netparams.V*params.M, 0, consts)
 
     (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, netparams.V, consts.cache_capacity)
@@ -141,4 +160,35 @@ function incPwrSim(pwr_lim::Float64, pwr_inc::Float64, params::other_parameters 
     end
 
     return plot(pwr_range, results, title="Delay with increasing Pmax", xlabel="Pmax", ylabel="Delay")
+end
+
+function lruSim(T::Int64, params::other_parameters = params, netparams::network_parameters = netparams, probcomps::problem_components = probcomps)
+    M = params.M
+    V = netparams.V
+    cache_capacity = probcomps.consts.cache_capacity
+    paths = probcomps.netgraph.paths
+    F = probcomps.funcs.F
+    Gintegral = probcomps.funcs.Gintegral
+
+    lru_timestamps = ones(Int64, M,V)
+    lru_cache = BitArray(undef, M,V)
+    for v in 1:V
+        lru_cache[1:cache_capacity[v],v] .= 1
+    end
+    S_0 = (probcomps.consts.P_max / size(probcomps.netgraph.edges,1)) * ones(Float64, size(probcomps.netgraph.edges,1))
+    X_0 = deepcopy(reshape(lru_cache,M*V))
+    D_lru = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_0) for n in 1:length(Gintegral)) )
+    t = 2
+    t, lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, probcomps.reqs, paths, cache_capacity)
+    X_t = deepcopy(reshape(lru_cache,M*V))
+    while t <= T+1
+        reqs = randomRequests(params.pd, params.numof_requests, 1.0)
+        funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
+        D_lru += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_t) for n in 1:length(funcs.Gintegral)) )
+        t, lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, reqs, paths, cache_capacity)
+        X_t = deepcopy(reshape(lru_cache,M*V))
+    end
+    
+    println(" -- LRU --")
+    @printf("Delay: %.2f\n", D_lru/(T))
 end

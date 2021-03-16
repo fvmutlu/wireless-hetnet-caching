@@ -302,7 +302,8 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
     else
         dim_S = size(S_step_t, 1) # length of power vector
         S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
-        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl)
+        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
+        #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, S_proj_t <= P_max]) # problem definition (Convex.jl), per-transmission power constraint
         solve!(problem, SCS.Optimizer(verbose=false)) # use SCS solver (Convex.jl, SCS.jl)
         S_proj_t = evaluate(S_proj_t)
     end
@@ -341,7 +342,7 @@ function randomInitPoint(dim_S, dim_Y, weight, consts)
 end
 
 function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
-    Y_matrix = reshape(Y_opt, (M, V)) # put the caching vector into matrix form
+    Y_matrix = deepcopy(reshape(Y_opt, (M, V))) # put the caching vector into matrix form
     epsilon = 1e-3
     for v in 1:V # repeat for all nodes 
         y = Y_matrix[:,v]; # get node v's caching variables (column vector)
@@ -426,6 +427,47 @@ function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
         Y_matrix[:,v] = y
     end
     return vcat(Y_matrix...)
+end
+
+function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+    M = size(lru_cache, 1);
+    V = size(lru_cache, 2)
+    lru_temp = lru_timestamps .* lru_cache # last access timestamps of items still in caches
+    lru_temp[ findall((i -> i<= 0), lru_temp) ] .= 1e6 # remove items not cached, if there are Inf (1e6) min values there's a bug possibly with initial values
+    lru_temp = lru_temp[end:-1:1,1:1:end] # flip(lru_temp)
+    evictions = argmin.([ lru_temp[1:end,i] for i in 1:V ]) # LRU items that are still in cache is next eviction, get indices from flipped vector so that least popular item will be given in cases of time collision
+    evictions = (M+1) .- evictions; # get true indices
+
+    # LRU update loop
+
+    for (r,p) in enumerate(paths)
+        plen = length(p)
+        i = reqs.items[r]
+        lambda_i_p = reqs.rates[r]
+        for k=2:plen - 1
+            pk = p[k]
+            lru_timestamps[i,pk] = time_slot;
+            if lru_cache[i,pk]==0
+                if sum(lru_cache[:,pk]) >= cache_capacity[pk]
+                    if lru_cache[evictions[pk],pk] == 1
+                        lru_cache[evictions[pk],pk] = 0;
+                    else
+                        evict_temp = lru_timestamps[:,pk] .* lru_cache[:,pk]
+                        evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e6
+                        evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
+                        eviction = (M+1) - argmin(evict_temp)
+                        lru_cache[eviction,pk] = 0;
+                    end
+                end
+                lru_cache[i,pk] = 1
+            else
+                break
+            end
+        end
+    end
+    time_slot += 1
+
+    return time_slot, lru_timestamps, lru_cache
 end
 
 function isbinary(x)

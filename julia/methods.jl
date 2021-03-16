@@ -137,7 +137,7 @@ function subMethodMult(SY_0, funcs, consts)
     return (D_best_sub, S_best_sub, Y_best_sub)
 end
 
-function altMethod(SY_0, funcs, consts) # TODO: Remove outermost for loop (don't need multiple initial points)
+function altMethod(SY_0, funcs, consts) # FIXME: When using altMethod, input SY_0 should be a singular tuple, not an array of tuples
     numof_initpoints = length(SY_0)
     F = funcs.F
     G = funcs.G
@@ -348,4 +348,52 @@ function altMethodMult(SY_0, funcs, consts)
     S_best_alt = S_alt_arr[argmin(D_alt_arr)]
     Y_best_alt = Y_alt_arr[argmin(D_alt_arr)]
     return (D_best_alt, S_best_alt, Y_best_alt)
+end
+
+function pwrOnly(S_0, Y_t, funcs, consts)
+    F = funcs.F
+    G = funcs.G
+    @assert length(F) == length(G) "F and G functions don't have the same length"
+    grad_S_F = funcs.grad_S_F    
+
+    D_0 = sum([ F[m](S_0) for m in 1:length(F) ] .* [ G[n](Y_0) for n in 1:length(G) ])
+    S_t = S_0
+    S_t_prev = S_t
+    D_t = D_0
+
+    D_hat_t = Inf
+    delta = D_t/2
+    div_ctr = 0
+    dim_val = 2
+    slow_ctr = 0
+    t = 0
+    while t==0 || ( (abs(D_hat_t - D_t) >= epsilon) && (norm(S_t_prev - S_t) >= epsilon_S) )
+        D_hat_t = min(D_t, D_hat_t) # If current objective is the minimum so far, replace D_hat
+        d_S_t = hcat(ThreadsX.collect(grad_S_F[m](S_t) for m in 1:length(grad_S_F))...) * ThreadsX.collect(G[n](Y_t) for n in 1:length(G)) # Gradient of D w.r.t S evaluated at (Yₜ,Sₜ)
+        step_size_S = (D_t - D_hat_t + delta) / (norm(d_S_t)^2) # Polyak step size calculation
+        S_step_t = S_t - step_size_S*d_S_t # Take step for S
+        S_proj_t, Y_proj_t = projOpt(S_step_t, 0, consts); # Projection (ignore Y_proj_t for power step)
+        S_t_prev = S_t # We need to save S^t for the while condition
+        S_t = S_proj_t # S^{t+1} = \bar{S}^t
+        D_t = ThreadsX.sum( ThreadsX.collect(F[m](S_t) for m in 1:length(F)) .* ThreadsX.collect(G[n](Y_t) for n in 1:length(G)) ) # Calculate the objective for iteration t
+        if D_t > D_hat_t # Decrease delta when zigzagging occurs
+            div_ctr += 1
+            if div_ctr==5
+                delta = delta / sqrt(dim_val)
+                dim_val += 1
+                div_ctr = 0
+                slow_ctr = 0
+            end
+        elseif D_hat_t - D_t <= 10*epsilon
+            slow_ctr += 1
+            if slow_ctr==5  # Increase delta when convergence is slow
+                delta = delta * sqrt(dim_val)
+                slow_ctr = 0
+                div_ctr = 0
+            end
+        end
+        t += 1
+    end
+
+    return (D_t, S_t)
 end
