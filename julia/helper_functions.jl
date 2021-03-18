@@ -1,4 +1,4 @@
-using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, LightGraphs, SimpleWeightedGraphs
+using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, LightGraphs, SimpleWeightedGraphs
 
 import Base.Threads.@spawn
 
@@ -430,10 +430,10 @@ function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
 end
 
 function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
-    M = size(lru_cache, 1);
+    M = size(lru_cache, 1)
     V = size(lru_cache, 2)
     lru_temp = lru_timestamps .* lru_cache # last access timestamps of items still in caches
-    lru_temp[ findall((i -> i<= 0), lru_temp) ] .= 1e6 # remove items not cached, if there are Inf (1e6) min values there's a bug possibly with initial values
+    lru_temp[ findall((i -> i<= 0), lru_temp) ] .= 1e8 # remove items not cached, if there are Inf (1e8) min values there's a bug possibly with initial values
     lru_temp = lru_temp[end:-1:1,1:1:end] # flip(lru_temp)
     evictions = argmin.([ lru_temp[1:end,i] for i in 1:V ]) # LRU items that are still in cache is next eviction, get indices from flipped vector so that least popular item will be given in cases of time collision
     evictions = (M+1) .- evictions; # get true indices
@@ -444,7 +444,7 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
         plen = length(p)
         i = reqs.items[r]
         lambda_i_p = reqs.rates[r]
-        for k=2:plen - 1
+        for k=2:plen - 1 # Skip user node (start from k=2, CRUCIAL!)
             pk = p[k]
             lru_timestamps[i,pk] = time_slot;
             if lru_cache[i,pk]==0
@@ -453,7 +453,7 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
                         lru_cache[evictions[pk],pk] = 0;
                     else
                         evict_temp = lru_timestamps[:,pk] .* lru_cache[:,pk]
-                        evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e6
+                        evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e8
                         evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
                         eviction = (M+1) - argmin(evict_temp)
                         lru_cache[eviction,pk] = 0;
@@ -468,6 +468,106 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
     time_slot += 1
 
     return time_slot, lru_timestamps, lru_cache
+end
+
+function lfuAdvance(time_slot::Int64, lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+    M = size(lfu_cache, 1)
+    V = size(lfu_cache, 2)
+    lfu_temp = lfu_counts .* lfu_cache # counts of items still in caches (counts will start at 1 instead of 0 to avoid miscalculation since we're ANDing)
+    lfu_temp[ findall((i -> i<= 0), lfu_temp) ] .= 1e8 # remove items not cached, if there are Inf (1e8) min values there's a bug possibly with initial values
+    lfu_temp = lfu_temp[end:-1:1,1:1:end] # flip(lfu_temp)
+    evictions = argmin.([ lfu_temp[1:end,i] for i in 1:V ]) # LRU items that are still in cache is next eviction, get indices from flipped vector so that least popular item will be given in cases of time collision
+    evictions = (M+1) .- evictions; # get true indices
+
+    # LFU update loop
+
+    for (r,p) in enumerate(paths)
+        plen = length(p)
+        i = reqs.items[r]
+        lambda_i_p = reqs.rates[r]
+        for k=2:plen - 1 # Skip user node (start from k=2, CRUCIAL!)
+            pk = p[k]
+            lfu_counts[i,pk] += 1;
+            if lfu_cache[i,pk]==0
+                if sum(lfu_cache[:,pk]) >= cache_capacity[pk]
+                    if lfu_cache[evictions[pk],pk] == 1
+                        lfu_cache[evictions[pk],pk] = 0;
+                    else
+                        evict_temp = lfu_counts[:,pk] .* lfu_cache[:,pk]
+                        evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e8
+                        evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
+                        eviction = (M+1) - argmin(evict_temp)
+                        lfu_cache[eviction,pk] = 0;
+                    end
+                end
+                lfu_cache[i,pk] = 1
+            else
+                break
+            end
+        end
+    end
+    time_slot += 1
+
+    return time_slot, lfu_counts, lfu_cache
+end
+
+function fifoAdvance(time_slot::Int64, fifo_queues::Array{Queue{Int64},1}, fifo_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+
+    # FIFO update loop
+
+    for (r,p) in enumerate(paths)
+        plen = length(p)
+        i = reqs.items[r]
+        lambda_i_p = reqs.rates[r]
+        for k=2:plen - 1 # Skip user node (start from k=2, CRUCIAL!)
+            pk = p[k]
+            q = fifo_queues[pk]
+            if !in(i,collect(q)) # if item is not in cache
+                if length(q) >= cache_capacity[pk]
+                    dequeue!(q)
+                end
+                enqueue!(q,i)
+            else
+                break
+            end
+        end
+    end
+    time_slot += 1
+
+    fifo_cache[:,:] .= 0
+    for v in 1:size(fifo_cache,2)
+        fifo_cache[collect(fifo_queues[v]), v] .= 1
+    end
+
+    return time_slot, fifo_queues, fifo_cache
+end
+
+function randAdvance(time_slot::Int64, rand_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+    M = size(rand_cache, 1)
+    V = size(rand_cache, 2)
+    
+    # RANDOM update loop
+
+    for (r,p) in enumerate(paths)
+        plen = length(p)
+        i = reqs.items[r]
+        lambda_i_p = reqs.rates[r]
+        for k=2:plen - 1 # Skip user node (start from k=2, CRUCIAL!)
+            pk = p[k]
+            if rand_cache[i,pk]==0
+                if sum(rand_cache[:,pk]) >= cache_capacity[pk]
+                    eviction = rand(findall( (i -> i==1), rand_cache[:,pk] ))
+                    rand_cache[eviction,pk] = 0
+                end
+                rand_cache[i,pk] = 1
+            else
+                break
+            end
+        end
+    end
+    time_slot += 1
+
+    return time_slot, rand_cache
 end
 
 function isbinary(x)
