@@ -277,6 +277,28 @@ function randomRequests(pd::Array{Float64,1}, numof_requests::Int64, base_rate::
     return requests(requested_items, request_rates)
 end
 
+function dependentRequests(time_slot::Int64, period::Int64, time_constants::Array{Int64,2}, pd::Array{Float64,1}, numof_requests::Int64, base_rate::Float64)
+    requested_items = zeros(Int64, numof_requests)
+    request_rates = zeros(Float64, numof_requests)
+
+    if time_slot % period == 0
+        new_tc = rand(Int64(floor(period/4)):Int64(ceil(3*period/4)), length(pd),numof_requests)
+    else
+        new_tc = time_constants;
+    end
+
+    for r in 1:numof_requests
+        w = (1 ./ new_tc[:,r]) .* exp.(-time_slot ./ new_tc[:,r])
+        w = w .* pd
+        w = ProbabilityWeights(w ./ sum(w))
+        x = sample(1:length(pd),w) # Sample an item from the ordered list of items {1, 2, ..., M-1, M} according to the probability distribution pd
+        requested_items[r] = x # Assign sampled item as the requested item for this request
+        request_rates[r] = base_rate + pd[x] # Calculate the request rate (λ) (NOTE: The calculation here is a valid but dumb one, it could be much smarter but that would be determined by the network)
+    end
+
+    return requests(requested_items, request_rates), new_tc
+end
+
 function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Array{Int64,1}, P_min::Float64, P_max::Float64) # TODO: Add per-node or other types of constraints?
     cache_capacity = zeros(Int64,V) # For cache capacity constraint C*Y <= cache_capacity
     cache_capacity[1] = c_mc
@@ -465,12 +487,11 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
             end
         end
     end
-    time_slot += 1
 
-    return time_slot, lru_timestamps, lru_cache
+    return lru_timestamps, lru_cache
 end
 
-function lfuAdvance(time_slot::Int64, lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+function lfuAdvance(lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
     M = size(lfu_cache, 1)
     V = size(lfu_cache, 2)
     lfu_temp = lfu_counts .* lfu_cache # counts of items still in caches (counts will start at 1 instead of 0 to avoid miscalculation since we're ANDing)
@@ -506,12 +527,11 @@ function lfuAdvance(time_slot::Int64, lfu_counts::Array{Int64, 2}, lfu_cache::Bi
             end
         end
     end
-    time_slot += 1
 
-    return time_slot, lfu_counts, lfu_cache
+    return lfu_counts, lfu_cache
 end
 
-function fifoAdvance(time_slot::Int64, fifo_queues::Array{Queue{Int64},1}, fifo_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+function fifoAdvance(fifo_queues::Array{Queue{Int64},1}, fifo_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
 
     # FIFO update loop
 
@@ -532,17 +552,16 @@ function fifoAdvance(time_slot::Int64, fifo_queues::Array{Queue{Int64},1}, fifo_
             end
         end
     end
-    time_slot += 1
 
     fifo_cache[:,:] .= 0
     for v in 1:size(fifo_cache,2)
         fifo_cache[collect(fifo_queues[v]), v] .= 1
     end
 
-    return time_slot, fifo_queues, fifo_cache
+    return fifo_queues, fifo_cache
 end
 
-function randAdvance(time_slot::Int64, rand_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
+function randAdvance(rand_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
     M = size(rand_cache, 1)
     V = size(rand_cache, 2)
     
@@ -565,9 +584,8 @@ function randAdvance(time_slot::Int64, rand_cache::BitArray{2}, reqs::requests, 
             end
         end
     end
-    time_slot += 1
 
-    return time_slot, rand_cache
+    return rand_cache
 end
 
 function isbinary(x)

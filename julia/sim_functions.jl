@@ -181,13 +181,15 @@ function lruSim(T::Int64, params::other_parameters = params, netparams::network_
     X_0 = deepcopy(reshape(lru_cache,M*V))
     D_lru = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_0) for n in 1:length(Gintegral)) )
     t = 2
-    t, lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, probcomps.reqs, paths, cache_capacity)
+    lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, probcomps.reqs, paths, cache_capacity)
+    t += 1
     while t <= T+1
         X_t = deepcopy(reshape(lru_cache,M*V))
         reqs = randomRequests(params.pd, params.numof_requests, 1.0)
         funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
         D_lru += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_t) for n in 1:length(funcs.Gintegral)) )
-        t, lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, reqs, paths, cache_capacity)        
+        lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, reqs, paths, cache_capacity)
+        t += 1
     end
     
     println(" -- LRU --")
@@ -214,13 +216,15 @@ function lfuSim(T::Int64, params::other_parameters = params, netparams::network_
     X_0 = deepcopy(reshape(lfu_cache,M*V))
     D_lfu = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_0) for n in 1:length(Gintegral)) )
     t = 2
-    t, lfu_counts, lfu_cache = lfuAdvance(t, lfu_counts, lfu_cache, probcomps.reqs, paths, cache_capacity)
+    lfu_counts, lfu_cache = lfuAdvance(lfu_counts, lfu_cache, probcomps.reqs, paths, cache_capacity)
+    t += 1
     while t <= T+1
         X_t = deepcopy(reshape(lfu_cache,M*V))
         reqs = randomRequests(params.pd, params.numof_requests, 1.0)
         funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
         D_lfu += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_t) for n in 1:length(funcs.Gintegral)) )
-        t, lfu_counts, lfu_cache = lfuAdvance(t, lfu_counts, lfu_cache, reqs, paths, cache_capacity)        
+        lfu_counts, lfu_cache = lfuAdvance(lfu_counts, lfu_cache, reqs, paths, cache_capacity)        
+        t += 1
     end
     
     println(" -- LFU --")
@@ -250,13 +254,15 @@ function fifoSim(T::Int64, params::other_parameters = params, netparams::network
     X_0 = deepcopy(reshape(fifo_cache,M*V))
     D_fifo = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_0) for n in 1:length(Gintegral)) )
     t = 2
-    t, fifo_queues, fifo_cache = fifoAdvance(t, fifo_queues, fifo_cache, probcomps.reqs, paths, cache_capacity)
+    fifo_queues, fifo_cache = fifoAdvance(fifo_queues, fifo_cache, probcomps.reqs, paths, cache_capacity)
+    t += 1
     while t <= T+1
         X_t = deepcopy(reshape(fifo_cache,M*V))
         reqs = randomRequests(params.pd, params.numof_requests, 1.0)
         funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
         D_fifo += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_t) for n in 1:length(funcs.Gintegral)) )
-        t, fifo_queues, fifo_cache = fifoAdvance(t, fifo_queues, fifo_cache, reqs, paths, cache_capacity)        
+        fifo_queues, fifo_cache = fifoAdvance(fifo_queues, fifo_cache, reqs, paths, cache_capacity)        
+        t += 1
     end
     
     println(" -- FIFO --")
@@ -282,18 +288,117 @@ function randSim(T::Int64, params::other_parameters = params, netparams::network
     X_0 = deepcopy(reshape(rand_cache,M*V))
     D_rand = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_0) for n in 1:length(Gintegral)) )
     t = 2
-    t, rand_cache = randAdvance(t, rand_cache, probcomps.reqs, paths, cache_capacity)
+    rand_cache = randAdvance(rand_cache, probcomps.reqs, paths, cache_capacity)
+    t += 1
     while t <= T+1
         X_t = deepcopy(reshape(rand_cache,M*V))
         reqs = randomRequests(params.pd, params.numof_requests, 1.0)
         funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
         D_rand += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_t) for n in 1:length(funcs.Gintegral)) )
-        t, rand_cache = randAdvance(t, rand_cache, reqs, paths, cache_capacity)        
+        rand_cache = randAdvance(rand_cache, reqs, paths, cache_capacity)        
+        t += 1
     end
     
     println(" -- RANDOM --")
     @printf("Delay: %.2f\n", D_rand/(T))
     return D_rand/(T)
+end
+
+function baselineSim(T::Int64, params::other_parameters = params, netparams::network_parameters = netparams, probcomps::problem_components = probcomps)
+    M = params.M
+    V = netparams.V
+    cache_capacity = probcomps.consts.cache_capacity
+    paths = probcomps.netgraph.paths
+    F = probcomps.funcs.F
+    Gintegral = probcomps.funcs.Gintegral
+
+    lru_timestamps = ones(Int64, M,V)
+    lru_cache = BitArray(undef, M,V)
+    lru_cache[:,:] .= 0
+
+    lfu_counts = ones(Int64, M,V)
+    lfu_cache = BitArray(undef, M,V)
+    lfu_cache[:,:] .= 0
+
+    fifo_queues = collect( [ Queue{Int64}() for i in 1:V] )
+    fifo_cache = BitArray(undef, M,V)
+    fifo_cache[:,:] .= 0
+
+    rand_cache = BitArray(undef, M,V)
+    rand_cache[:,:] .= 0
+
+    for v in 1:V
+        lru_cache[1:cache_capacity[v],v] .= 1
+        lfu_cache[1:cache_capacity[v],v] .= 1
+        for i in 1:cache_capacity[v]
+            enqueue!(fifo_queues[v],i)
+        end
+        fifo_cache[1:cache_capacity[v],v] .= 1
+        rand_cache[1:cache_capacity[v],v] .= 1
+    end
+
+    S_0 = (probcomps.consts.P_max / size(probcomps.netgraph.edges,1)) * ones(Float64, size(probcomps.netgraph.edges,1))
+
+    X_lru_0 = deepcopy(reshape(lru_cache,M*V))
+    X_lfu_0 = deepcopy(reshape(lfu_cache,M*V))
+    X_fifo_0 = deepcopy(reshape(fifo_cache,M*V))
+    X_rand_0 = deepcopy(reshape(rand_cache,M*V))
+
+    D_lru = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_lru_0) for n in 1:length(Gintegral)) )
+    D_lfu = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_lfu_0) for n in 1:length(Gintegral)) )
+    D_fifo = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_fifo_0) for n in 1:length(Gintegral)) )
+    D_rand = ThreadsX.sum( ThreadsX.collect(F[m](S_0) for m in 1:length(F)) .* ThreadsX.collect(Gintegral[n](X_rand_0) for n in 1:length(Gintegral)) )
+
+    t = 2
+    lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, probcomps.reqs, paths, cache_capacity)
+    lfu_counts, lfu_cache = lfuAdvance(lfu_counts, lfu_cache, probcomps.reqs, paths, cache_capacity)
+    fifo_queues, fifo_cache = fifoAdvance(fifo_queues, fifo_cache, probcomps.reqs, paths, cache_capacity)
+    rand_cache = randAdvance(rand_cache, probcomps.reqs, paths, cache_capacity)
+    t += 1
+
+    #= println(" -- LRU --")
+    display(lru_cache)
+    println(" -- LFU --")
+    display(lfu_cache)
+    println(" -- FIFO --")
+    display(fifo_cache)
+    println(" -- RANDOM --")
+    display(random_cache) =#
+
+    period = 10
+    tc = new_tc = rand(Int64(floor(period/4)):Int64(ceil(3*period/4)), params.M, params.numof_requests)
+    while t <= T+1
+        X_lru_t = deepcopy(reshape(lru_cache,M*V))
+        X_lfu_t = deepcopy(reshape(lfu_cache,M*V))
+        X_fifo_t = deepcopy(reshape(fifo_cache,M*V))
+        X_rand_t = deepcopy(reshape(rand_cache,M*V))
+        #reqs = randomRequests(params.pd, params.numof_requests, 1.0)
+        reqs, tc = dependentRequests(t, period, tc, params.pd, params.numof_requests, 1.0)
+        funcs = funcSetup(probcomps.netgraph, reqs, netparams.V, params.M, netparams.noise, params.D_bh_mc, params.D_bh_sc)
+        D_lru += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_lru_t) for n in 1:length(funcs.Gintegral)) )
+        D_lfu += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_lfu_t) for n in 1:length(funcs.Gintegral)) )
+        D_fifo += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_fifo_t) for n in 1:length(funcs.Gintegral)) )
+        D_rand += ThreadsX.sum( ThreadsX.collect(funcs.F[m](S_0) for m in 1:length(funcs.F)) .* ThreadsX.collect(funcs.Gintegral[n](X_rand_t) for n in 1:length(funcs.Gintegral)) )
+        lru_timestamps, lru_cache = lruAdvance(t, lru_timestamps, lru_cache, reqs, paths, cache_capacity)
+        lfu_counts, lfu_cache = lfuAdvance(lfu_counts, lfu_cache, reqs, paths, cache_capacity)
+        fifo_queues, fifo_cache = fifoAdvance(fifo_queues, fifo_cache, reqs, paths, cache_capacity)
+        rand_cache = randAdvance(rand_cache, reqs, paths, cache_capacity)        
+        t += 1
+    end
+
+    println(" -- LRU --")
+    @printf("Delay: %.2f\n", D_lru/(T))
+
+    println(" -- LFU --")
+    @printf("Delay: %.2f\n", D_lfu/(T))
+
+    println(" -- FIFO --")
+    @printf("Delay: %.2f\n", D_fifo/(T))
+
+    println(" -- RANDOM --")
+    @printf("Delay: %.2f\n", D_rand/(T))
+
+    return D_lru/(T), D_lfu/(T), D_fifo/(T), D_rand/(T)
 end
 
 function polruSim(T::Int64, params::other_parameters = params, netparams::network_parameters = netparams, probcomps::problem_components = probcomps)
@@ -343,14 +448,16 @@ function incScCombSim(inc_count::Int64, params::other_parameters = params, netpa
     consts = probcomps.consts
     SY_0 = probcomps.SY_0[1]
 
+    T = 5;
+
     (D_opt, S_opt, Y_opt) = altMethod(SY_0, funcs, consts)
     X_opt = pipageRound(funcs.F, funcs.Gintegral, S_opt, Y_opt, params.M, netparams.V, consts.cache_capacity)
     D_0 = sum([ funcs.F[m](S_opt) for m in 1:length(funcs.F) ] .* [ funcs.Gintegral[n](X_opt) for n in 1:length(funcs.G) ])
     results[1] = D_0;
-    lru_results[1] = lruSim(200)
-    lfu_results[1] = lfuSim(200)
-    fifo_results[1] = fifoSim(200)
-    rand_results[1] = randSim(200)
+    lru_results[1] = lruSim(T)
+    lfu_results[1] = lfuSim(T)
+    fifo_results[1] = fifoSim(T)
+    rand_results[1] = randSim(T)
 
     for i in 2:inc_count+1
         netparams.V += 1
@@ -367,10 +474,10 @@ function incScCombSim(inc_count::Int64, params::other_parameters = params, netpa
         results[i] = D_0;
 
         newprob = problem_components(V_pos, netgraph, reqs, funcs, consts, probcomps.SY_0)
-        lru_results[i] = lruSim(200, params, netparams, newprob)
-        lfu_results[i] = lfuSim(200, params, netparams, newprob)
-        fifo_results[i] = fifoSim(200, params, netparams, newprob)
-        rand_results[i] = randSim(200, params, netparams, newprob)
+        lru_results[i] = lruSim(T, params, netparams, newprob)
+        lfu_results[i] = lfuSim(T, params, netparams, newprob)
+        fifo_results[i] = fifoSim(T, params, netparams, newprob)
+        rand_results[i] = randSim(T, params, netparams, newprob)
     end
 
     display(hcat(results,lru_results,lfu_results,fifo_results,rand_results))
