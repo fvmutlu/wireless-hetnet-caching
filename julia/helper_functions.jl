@@ -281,19 +281,21 @@ function dependentRequests(time_slot::Int64, period::Int64, time_constants::Arra
     requested_items = zeros(Int64, numof_requests)
     request_rates = zeros(Float64, numof_requests)
 
-    if time_slot % period == 0
-        new_tc = rand(Int64(floor(period/4)):Int64(ceil(3*period/4)), length(pd),numof_requests)
-    else
-        new_tc = time_constants;
-    end
+    period_slot = (time_slot - 1) % period
 
     for r in 1:numof_requests
-        w = (1 ./ new_tc[:,r]) .* exp.(-time_slot ./ new_tc[:,r])
+        w = (1 ./ time_constants[:,r]) .* exp.(-period_slot ./ time_constants[:,r])
         w = w .* pd
         w = ProbabilityWeights(w ./ sum(w))
         x = sample(1:length(pd),w) # Sample an item from the ordered list of items {1, 2, ..., M-1, M} according to the probability distribution pd
         requested_items[r] = x # Assign sampled item as the requested item for this request
         request_rates[r] = base_rate + pd[x] # Calculate the request rate (λ) (NOTE: The calculation here is a valid but dumb one, it could be much smarter but that would be determined by the network)
+    end
+
+    if time_slot % period == 0
+        new_tc = rand(Int64(floor(period/4)):Int64(ceil(3*period/4)), length(pd),numof_requests)
+    else
+        new_tc = time_constants;
     end
 
     return requests(requested_items, request_rates), new_tc
@@ -472,15 +474,16 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
             if lru_cache[i,pk]==0
                 if sum(lru_cache[:,pk]) >= cache_capacity[pk]
                     if lru_cache[evictions[pk],pk] == 1
-                        lru_cache[evictions[pk],pk] = 0;
+                        lru_cache[evictions[pk],pk] = 0
                     else
                         evict_temp = lru_timestamps[:,pk] .* lru_cache[:,pk]
                         evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e8
                         evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
                         eviction = (M+1) - argmin(evict_temp)
-                        lru_cache[eviction,pk] = 0;
+                        lru_cache[eviction,pk] = 0
                     end
                 end
+                #lru_timestamps[i,pk] = time_slot
                 lru_cache[i,pk] = 1
             else
                 break
@@ -512,15 +515,16 @@ function lfuAdvance(lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::r
             if lfu_cache[i,pk]==0
                 if sum(lfu_cache[:,pk]) >= cache_capacity[pk]
                     if lfu_cache[evictions[pk],pk] == 1
-                        lfu_cache[evictions[pk],pk] = 0;
+                        lfu_cache[evictions[pk],pk] = 0
                     else
                         evict_temp = lfu_counts[:,pk] .* lfu_cache[:,pk]
                         evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e8
                         evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
                         eviction = (M+1) - argmin(evict_temp)
-                        lfu_cache[eviction,pk] = 0;
+                        lfu_cache[eviction,pk] = 0
                     end
                 end
+                #lfu_counts[i,pk] += 1
                 lfu_cache[i,pk] = 1
             else
                 break
@@ -529,6 +533,53 @@ function lfuAdvance(lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::r
     end
 
     return lfu_counts, lfu_cache
+end
+
+function lrfuAdvance(time_slot::Int64, lrfu_scores::Array{Float64, 2}, lrfu_timestamps::Array{Int64, 2}, lrfu_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1}, p::Float64 = 2.0, alpha::Float64 = 0.01)
+
+    # Algorithm adapted from "LRFU: A Spectrum of Policies thatSubsumes the Least Recently Used andLeast Frequently Used Policies" by Donghee Lee et al. December 2001 IEEE Transactions on Computers Vol. 50 No. 12
+
+    M = size(lrfu_cache, 1)
+    V = size(lrfu_cache, 2)
+    wf = (x -> (1/p)^(alpha*x))
+    lrfu_temp = lrfu_scores .* lrfu_cache # counts of items still in caches (counts will start at 1 instead of 0 to avoid miscalculation since we're ANDing)
+    lrfu_temp[ findall((i -> i<= 0), lrfu_temp) ] .= 1e8 # remove items not cached, if there are Inf (1e8) min values there's a bug possibly with initial values
+    lrfu_temp = lrfu_temp[end:-1:1,1:1:end] # flip(lrfu_temp)
+    evictions = argmin.([ lrfu_temp[1:end,i] for i in 1:V ]) # LRU items that are still in cache is next eviction, get indices from flipped vector so that least popular item will be given in cases of time collision
+    evictions = (M+1) .- evictions; # get true indices
+
+    # LRFU update loop
+
+    for (r,p) in enumerate(paths)
+        plen = length(p)
+        i = reqs.items[r]
+        lambda_i_p = reqs.rates[r]
+        for k=2:plen - 1 # Skip user node (start from k=2, CRUCIAL!)
+            pk = p[k]
+            lrfu_scores[i,pk] = wf(0) + wf(time_slot - lrfu_timestamps[i,pk]) * lrfu_scores[i,pk]
+            lrfu_timestamps[i,pk] = time_slot            
+            if lrfu_cache[i,pk]==0
+                if sum(lrfu_cache[:,pk]) >= cache_capacity[pk]
+                    if lrfu_cache[evictions[pk],pk] == 1
+                        lrfu_cache[evictions[pk],pk] = 0
+                    else
+                        evict_temp = lrfu_scores[:,pk] .* lrfu_cache[:,pk]
+                        evict_temp[ findall((i -> i<= 0), evict_temp) ] .= 1e8
+                        evict_temp = evict_temp[end:-1:1] # flip(evict_temp)
+                        eviction = (M+1) - argmin(evict_temp)
+                        lrfu_cache[eviction,pk] = 0
+                    end
+                end
+                #lrfu_scores[i,pk] = wf(0) + wf(time_slot - lrfu_timestamps[i,pk]) * lrfu_scores[i,pk]
+                #lrfu_timestamps[i,pk] = time_slot
+                lrfu_cache[i,pk] = 1
+            else
+                break
+            end
+        end
+    end
+
+    return lrfu_scores, lrfu_timestamps, lrfu_cache
 end
 
 function fifoAdvance(fifo_queues::Array{Queue{Int64},1}, fifo_cache::BitArray{2}, reqs::requests, paths::Array{Array{Int64,1},2}, cache_capacity::Array{Int64,1})
