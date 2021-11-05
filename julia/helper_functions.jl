@@ -1,6 +1,4 @@
-using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, LightGraphs, SimpleWeightedGraphs
-
-import Base.Threads.@spawn
+using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, LightGraphs, SimpleWeightedGraphs, GeometryBasics, VoronoiCells, Plots
 
 struct network_graph # Will add more fields if necessary
     paths::Array{Array{Int64,1},2}
@@ -14,11 +12,19 @@ struct requests
     rates::Array{Float64,1}
 end
 
+#= struct constraints
+    P_min::Float64
+    P_max::Float64
+    cache_capacity::Array{Int64,1}
+    C::Array{Int64,2}
+end =#
+
 struct constraints
     P_min::Float64
     P_max::Float64
     cache_capacity::Array{Int64,1}
     C::Array{Int64,2}
+    P::Array{Int64,2}
 end
 
 function cellDist(V::Int64, SC::Int64, R_cell::Float64)
@@ -68,6 +74,113 @@ function cellDist(V::Int64, SC::Int64, R_cell::Float64)
     end
 
     return V_pos
+end
+
+function voronoiDist(V::Int64, SC::Int64, R_cell::Float64)
+    V_pos = zeros(Float64, V, 3)
+    sc_nodes = collect(2:SC+1)
+    u_nodes = collect(SC+2:V)
+
+    N = 50
+    
+    rect = Rectangle(Point2(0, 0), Point2(1, 1))
+    points = [Point2(rand(), rand()) for p in 1:SC]
+    centroids = deepcopy(points)
+
+    for iter in 1:N
+        tess = voronoicells(centroids, rect)
+        areas = voronoiarea(tess)
+        for p in 1:length(points)
+            Cx = 0
+            Cy = 0
+            for c in 1:length(tess.Cells[p])
+                vx = c
+                vx1 = c % length(tess.Cells[p]) + 1
+                Cx += (tess.Cells[p][vx][1] + tess.Cells[p][vx1][1]) * (tess.Cells[p][vx][1]*tess.Cells[p][vx1][2] - tess.Cells[p][vx1][1]*tess.Cells[p][vx][2])
+                Cy += (tess.Cells[p][vx][2] + tess.Cells[p][vx1][2]) * (tess.Cells[p][vx][1]*tess.Cells[p][vx1][2] - tess.Cells[p][vx1][1]*tess.Cells[p][vx][2])
+            end
+            Cx = Cx / (6 * areas[p])
+            Cy = Cy / (6 * areas[p])
+            centroids[p] = Point2(Cx,Cy)
+        end
+        #= p = scatter()
+        p = scatter(centroids, markersize = 6, label = "Centroids")
+        annotate!([(centroids[n][1] + 0.02, centroids[n][2] + 0.03, Plots.text(n)) for n in 1:length(centroids)])
+        plot!(tess, legend = :topleft)
+        display(p)
+        sleep(0.1) =#
+    end
+
+    for (p, sc_node) in enumerate(sc_nodes)
+        pt = collect(centroids[p]) .- 0.5
+        pt = pt .* (R_cell/0.5)
+        #points[p] = Point2(pt)        
+        V_pos[sc_node,1:2] = pt
+        V_pos[sc_node,3] = 1
+    end
+
+    upoints = [Point2(rand(), rand()) for p in 1:(V-SC-1)]
+    range = 0.5*R_cell/sqrt(SC)
+    for (u,u_node) in enumerate(u_nodes)
+        c = (u_node-1) % SC + 1
+        sc_node = sc_nodes[c]
+        V_pos[u_node,1:2] = V_pos[sc_node,1:2] + rand(-range:0.01:range,2)
+        #upoints[u] = Point2(V_pos[u_node,1:2])
+        V_pos[u_node,3] = 2        
+    end
+
+    #= sleep(2.0)
+    p = scatter()
+    p = scatter(points, markersize = 6, label = "SCs")
+    p = scatter(upoints, markersize = 3, label = "Users")
+    display(p) =#
+
+    return V_pos    
+end
+
+function voronoiMod(V_pos::Array{Float64,2}, SC::Int64, R_cell::Float64)
+    sc_nodes = findall(i -> i == 1, V_pos[:,3])       
+
+    N = 50
+    
+    rect = Rectangle(Point2(0, 0), Point2(1, 1))
+    points = [Point2(rand(), rand()) for p in 1:SC]
+    centroids = deepcopy(points)
+
+    for iter in 1:N
+        tess = voronoicells(centroids, rect)
+        areas = voronoiarea(tess)
+        for p in 1:length(points)
+            Cx = 0
+            Cy = 0
+            for c in 1:length(tess.Cells[p])
+                vx = c
+                vx1 = c % length(tess.Cells[p]) + 1
+                Cx += (tess.Cells[p][vx][1] + tess.Cells[p][vx1][1]) * (tess.Cells[p][vx][1]*tess.Cells[p][vx1][2] - tess.Cells[p][vx1][1]*tess.Cells[p][vx][2])
+                Cy += (tess.Cells[p][vx][2] + tess.Cells[p][vx1][2]) * (tess.Cells[p][vx][1]*tess.Cells[p][vx1][2] - tess.Cells[p][vx1][1]*tess.Cells[p][vx][2])
+            end
+            Cx = Cx / (6 * areas[p])
+            Cy = Cy / (6 * areas[p])
+            centroids[p] = Point2(Cx,Cy)
+        end
+    end
+
+    for (p, sc_node) in enumerate(sc_nodes)
+        pt = collect(centroids[p]) .- 0.5
+        pt = pt .* (R_cell/0.5)        
+        V_pos[sc_node,1:2] = pt
+        V_pos[sc_node,3] = 1
+    end
+
+    return V_pos    
+end
+
+function addVoronoiSC(V_pos::Array{Float64,2}, R_cell::Float64)
+    sc_nodes = findall(i -> i == 1, V_pos[:,3])
+    V = size(V_pos, 1) + 1
+    sc_nodes = vcat(sc_nodes, V)
+    V_pos = vcat(V_pos, hcat(0,0,1))
+    return voronoiMod(V_pos,length(sc_nodes),R_cell)
 end
 
 function addSC(V_pos::Array{Float64,2}, R_cell::Float64) # TODO: Whenever this is called from the simulations, V in parameters must be incremented
@@ -301,7 +414,21 @@ function dependentRequests(time_slot::Int64, period::Int64, time_constants::Arra
     return requests(requested_items, request_rates), new_tc
 end
 
-function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Array{Int64,1}, P_min::Float64, P_max::Float64) # TODO: Add per-node or other types of constraints?
+function averageRequests(T::Int64, period::Int64, pd::Array{Float64,1}, numof_requests::Int64, base_rate::Float64)
+    items_large = Array{Int64,2}(undef, T,numof_requests)
+    rates_large = Array{Float64,2}(undef, T,numof_requests)
+    tc = rand(Int64(floor(period/4)):Int64(ceil(3*period/4)), length(pd),numof_requests)
+    for t in 1:T
+        reqs,tc = dependentRequests(t, period, tc, pd, numof_requests, base_rate)
+        items_large[t,:] = reqs.items
+        rates_large[t,:] = reqs.rates
+    end
+    requested_items = [ StatsBase.mode(items_large[:,r]) for r in 1:numof_requests ]
+    request_rates = [ mean(rates_large[:,r]) for r in 1:numof_requests ]
+    return requests(requested_items, request_rates), items_large, rates_large
+end
+
+#= function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Array{Int64,1}, P_min::Float64, P_max::Float64) # TODO: Add per-node or other types of constraints?
     cache_capacity = zeros(Int64,V) # For cache capacity constraint C*Y <= cache_capacity
     cache_capacity[1] = c_mc
     cache_capacity[sc_nodes] .= c_sc
@@ -312,13 +439,34 @@ function makeConsts(V::Int64, M::Int64, c_mc::Int64, c_sc::Int64, sc_nodes::Arra
     end
 
     return constraints(P_min, P_max, cache_capacity, C)
+end =#
+
+function makeConsts(V::Int64, M::Int64, sc_nodes::Array{Int64,1}, edges::Array{Int64,2}, c_mc::Int64, c_sc::Int64, P_min::Float64, P_max::Float64) # TODO: Add per-node or other types of constraints?
+    cache_capacity = zeros(Int64,V) # For cache capacity constraint C*Y <= cache_capacity
+    cache_capacity[1] = c_mc
+    cache_capacity[sc_nodes] .= c_sc
+
+    C = zeros(Int64, V,M*V) # For cache capacity constraint C*Y <= cache_capacity
+    for n in 1:V
+        C[ n, (n-1)*M+1 : n*M ] .= 1 # In matrix C, mark entries corresponding to node n's items as 1
+    end
+
+    P = zeros(Int64, V,size(edges,1))
+    for e in 1:size(edges,1)
+        tx_node = edges[e,1]
+        P[tx_node, e] = 1
+    end
+
+    return constraints(P_min, P_max, cache_capacity, C, P)
 end
 
 function projOpt(S_step_t, Y_step_t, consts::constraints)
     P_min = consts.P_min
     P_max = consts.P_max
     C = consts.C
+    P = consts.P
     cache_capacity = consts.cache_capacity
+    
 
     # Minimum norm subproblem for S projection
     if S_step_t == 0 # Skip power optimization if all zeros were passed (relevant for ALT)
@@ -326,9 +474,10 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
     else
         dim_S = size(S_step_t, 1) # length of power vector
         S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
-        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
+        #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
+        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, P*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
         #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, S_proj_t <= P_max]) # problem definition (Convex.jl), per-transmission power constraint
-        solve!(problem, SCS.Optimizer(verbose=false)) # use SCS solver (Convex.jl, SCS.jl)
+        solve!(problem, SCS.Optimizer(verbose=false), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
         S_proj_t = evaluate(S_proj_t)
     end
 
@@ -339,11 +488,50 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
         dim_Y = size(Y_step_t,1)
         Y_proj_t = Variable(dim_Y)
         problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
-        solve!(problem, SCS.Optimizer(verbose=false))
+        solve!(problem, SCS.Optimizer(verbose=false), verbose=false)
         Y_proj_t = evaluate(Y_proj_t)
     end
     return S_proj_t, Y_proj_t
 end
+
+#= function projOpt(S_step_t, Y_step_t, consts::constraints)
+    P_min = consts.P_min
+    P_max = consts.P_max
+    C = consts.C
+    cache_capacity = consts.cache_capacity
+    
+
+    # Minimum norm subproblem for S projection
+    if S_step_t == 0 # Skip power optimization if all zeros were passed (relevant for ALT)
+        S_proj_t = 0
+    else
+        dim_S = size(S_step_t, 1) # length of power vector
+        S_proj_t = Variable(dim_S) # problem variable, a column vector (Convex.jl)
+        problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
+        #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, S_proj_t <= P_max]) # problem definition (Convex.jl), per-transmission power constraint
+        solve!(problem, SCS.Optimizer(verbose=false), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
+        S_proj_t = evaluate(S_proj_t)
+    end
+
+    # Minimum norm subproblem for Y projection
+    if Y_step_t == 0
+        Y_proj_t = 0
+    else
+        idx = findall(i -> cache_capacity[i] > 0, 1:length(cache_capacity))
+        Y_temp = deepcopy(reshape(Y_step_t, (convert(Int64,size(Y_step_t,1)/length(cache_capacity)), length(cache_capacity))))
+        Y_temp = Y_temp[:,idx]
+        Y_temp = vcat(Y_temp...)
+        dim_Y = length(Y_temp)
+        Y_proj_t = Variable(dim_Y)
+        problem = minimize(norm(Y_proj_t - Y_temp),[Y_proj_t >= 0, Y_proj_t <= 1, ones(Int,length(idx),dim_Y)*Y_proj_t <= cache_capacity[idx]])
+        solve!(problem, SCS.Optimizer(verbose=false), verbose=false)
+        Y_proj_t = evaluate(Y_proj_t)
+        Y_temp = zeros(Float64, convert(Int64,size(Y_step_t,1)/length(cache_capacity)), length(cache_capacity))
+        Y_temp[:,idx] = reshape(Y_proj_t, convert(Int64,size(Y_step_t,1)/length(cache_capacity)), length(idx))
+        Y_proj_t = vcat(Y_temp...)
+    end
+    return S_proj_t, Y_proj_t
+end =# # ATTEMPT TO SPEED UP CACHE OPTIMIZATION BY REMOVING SPARSE PART OF Y
 
 function randomInitPoint(dim_S, dim_Y, weight, consts)
     Random.seed!(Dates.value(Dates.now())) # set the seed with current system time
@@ -353,29 +541,146 @@ function randomInitPoint(dim_S, dim_Y, weight, consts)
     # Randomized initial point for power vector
     mean = (P_max + P_min)/2 + (P_max + P_min)*weight/2
     var = (P_max + P_min)/10
-    pd = Normal(mean, var)
+    pd = Distributions.Normal(mean, var)
     S_0 = rand(pd, dim_S)
 
     # for caching vector
     mean = 0.5 + 0.5*weight/2
     var = 0.1
-    pd = Normal(mean, var)
+    pd = Distributions.Normal(mean, var)
     Y_0 = rand(pd, dim_Y)
 
     return projOpt(S_0, Y_0, consts)
 end
 
-function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
+#= function pipageRounding(F, G, S_opt, Y_opt, M, V, cache_capacity)
+    Y_matrix = deepcopy(reshape(Y_opt, (M, V)))
+    Y_matrix[findall(i->(i<0.01), Y_matrix)] .= 0 
+    Y_matrix[findall(i->(i>0.99), Y_matrix)] .= 1
+
+    for v in findall(i -> cache_capacity[i] > 0, 1:V)
+        while length(findall(!isbinary, Y_matrix[:,v])) > 1
+            for pair_ind_temp in collect(combinations(findall(!isbinary, Y_matrix[:,v]), 2))
+                y1 = Y_matrix[pair_ind_temp[1],v]
+                y2 = Y_matrix[pair_ind_temp[2],v]
+
+                if y1 + y2 < 1
+                    Y_matrix[pair_ind_temp[1],v] = 0
+                    Y_matrix[pair_ind_temp[2],v] = y1+y2
+                    obj1 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                    Y_matrix[pair_ind_temp[1],v] = y1+y2
+                    Y_matrix[pair_ind_temp[2],v] = 0
+                    obj2 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                    if obj1 < obj2
+                        Y_matrix[pair_ind_temp[1],v] = 0
+                        Y_matrix[pair_ind_temp[2],v] = y1+y2
+                    end
+                else
+                    Y_matrix[pair_ind_temp[1],v] = 1
+                    Y_matrix[pair_ind_temp[2],v] = y1+y2 - 1
+                    obj1 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                    Y_matrix[pair_ind_temp[1],v] = y1+y2 - 1
+                    Y_matrix[pair_ind_temp[2],v] = 1
+                    obj2 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                    if obj1 < obj2
+                        Y_matrix[pair_ind_temp[1],v] = 1
+                        Y_matrix[pair_ind_temp[2],v] = y1+y2 - 1
+                    end
+                end
+            end
+        end
+        if length(findall(!isbinary, Y_matrix[:,v])) == 1
+            id = findfirst(!isbinary, Y_matrix[:,v])
+            if round(sum(Y_matrix[:,v]) - Y_matrix[id,v]) + 1 <= cache_capacity[v]
+                Y_matrix[ findfirst(!isbinary, Y_matrix[:,v]), v ] = 1
+            else
+                Y_matrix[ findfirst(!isbinary, Y_matrix[:,v]), v ] = 0
+            end
+        end
+    end
+
+    return vcat(Y_matrix...)
+end =#
+
+function pipageRounding(F, G, S_opt, Y_opt, M, V, cache_capacity)
+    Y_matrix = deepcopy(reshape(Y_opt, (M, V)))
+    Y_matrix[findall(i->(i<0.01), Y_matrix)] .= 0 
+    Y_matrix[findall(i->(i>0.99), Y_matrix)] .= 1
+    opt_obj = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+    tolerance = 0.025
+    for v in findall(i -> cache_capacity[i] > 0, 1:V)
+        while length(findall(!isbinary, Y_matrix[:,v])) > 1
+            pair_ind_temp = StatsBase.sample(findall(!isbinary, Y_matrix[:,v]), 2, replace=false)
+            y1 = Y_matrix[pair_ind_temp[1],v]
+            y2 = Y_matrix[pair_ind_temp[2],v]
+
+            if y1 + y2 < 1
+                Y_matrix[pair_ind_temp[1],v] = 0
+                Y_matrix[pair_ind_temp[2],v] = y1+y2
+                obj1 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                Y_matrix[pair_ind_temp[1],v] = y1+y2
+                Y_matrix[pair_ind_temp[2],v] = 0
+                obj2 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                #println((opt_obj,obj1,obj2))                
+                if (obj1 < obj2) && (obj1 - opt_obj < opt_obj * tolerance)
+                    opt_obj = obj1
+                    Y_matrix[pair_ind_temp[1],v] = 0
+                    Y_matrix[pair_ind_temp[2],v] = y1+y2
+                elseif obj2 - opt_obj < opt_obj * tolerance
+                    opt_obj = obj2
+                    Y_matrix[pair_ind_temp[1],v] = y1+y2
+                    Y_matrix[pair_ind_temp[2],v] = 0
+                else
+                    Y_matrix[pair_ind_temp[1],v] = y1
+                    Y_matrix[pair_ind_temp[2],v] = y2
+                end
+            else
+                Y_matrix[pair_ind_temp[1],v] = 1
+                Y_matrix[pair_ind_temp[2],v] = y1+y2 - 1
+                obj1 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                Y_matrix[pair_ind_temp[1],v] = y1+y2 - 1
+                Y_matrix[pair_ind_temp[2],v] = 1
+                obj2 = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ G[n](vcat(Y_matrix...)) for n in 1:length(G) ])
+                #println((opt_obj,obj1,obj2))
+                if (obj1 < obj2) && (obj1 - opt_obj < opt_obj * tolerance)
+                    opt_obj = obj1
+                    Y_matrix[pair_ind_temp[1],v] = 1
+                    Y_matrix[pair_ind_temp[2],v] = y1+y2 - 1
+                elseif obj2 - opt_obj < opt_obj * tolerance
+                    opt_obj = obj2
+                    Y_matrix[pair_ind_temp[1],v] = y1+y2 - 1
+                    Y_matrix[pair_ind_temp[2],v] = 1
+                else
+                    Y_matrix[pair_ind_temp[1],v] = y1
+                    Y_matrix[pair_ind_temp[2],v] = y2
+                end
+            end
+        end
+        if length(findall(!isbinary, Y_matrix[:,v])) == 1
+            id = findfirst(!isbinary, Y_matrix[:,v])
+            if round(sum(Y_matrix[:,v]) - Y_matrix[id,v]) + 1 <= cache_capacity[v]
+                Y_matrix[ findfirst(!isbinary, Y_matrix[:,v]), v ] = 1
+            else
+                Y_matrix[ findfirst(!isbinary, Y_matrix[:,v]), v ] = 0
+            end
+        end
+    end
+
+    return vcat(Y_matrix...)
+end
+
+function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity) # TODO: consider replacing this with another rounding function
     Y_matrix = deepcopy(reshape(Y_opt, (M, V))) # put the caching vector into matrix form
     epsilon = 1e-3
     for v in 1:V # repeat for all nodes 
-        y = Y_matrix[:,v]; # get node v's caching variables (column vector)
+        y = deepcopy(Y_matrix[:,v]); # get node v's caching variables (column vector)
         y[findall(i->(i<epsilon), y)] .= 0 # fix floating-point rounding errors by rounding all values in epsilon neighborhood of 0
         y[findall(i->(abs(i-1)<epsilon), y)] .= 1 # fix floating-point rounding errors by rounding all values in epsilon neighborhood of 1
         while !(all(isbinary, y)) # repeat as long as there are fractional values
             y_frac_pair_ind = findall(!isbinary, y)
             if length(y_frac_pair_ind)==1
-                y_temp = y
+                y_temp = deepcopy(y)
+                display(y_frac_pair_ind)
                 y_temp[y_frac_pair_ind] = 1
                 if sum(y_temp)<=cache_capacity[v]
                     y[y_frac_pair_ind] = 1
@@ -384,63 +689,62 @@ function pipageRound(F, Gintegral, S_opt, Y_opt, M, V, cache_capacity)
                 end
             else
                 DO_best = Inf;
-                y_best = [0.0 0.0]
+                y_best = zeros(Float64,M)
 
                 for pair_ind_temp in collect(combinations(y_frac_pair_ind, 2))
-                    y_frac_pair = y[pair_ind_temp]
-                    y1 = y_frac_pair[1]
-                    y2 = y_frac_pair[2]
-                    y_temp = y
+                    y1 = y[pair_ind_temp][1]
+                    y2 = y[pair_ind_temp][2]
+                    y_temp = deepcopy(y)
 
                     # Case 1: Try rounding y1 to 0
                     if y1 + y2 < 1
                         y_temp[pair_ind_temp] = [0 y1+y2]
-                        Y_temp = Y_matrix
+                        Y_temp = deepcopy(Y_matrix)
                         Y_temp[:,v] = y_temp
                         Y_temp = vcat(Y_temp...)
                         DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])                        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
-                            y_best = y_temp
+                            y_best = deepcopy(y_temp)
                         end
                     end
 
                     # Case 2: Try rounding y1 to 1
                     if y2 - (1 - y1) > 0
                         y_temp[pair_ind_temp] = [1 y2 - (1 - y1)]
-                        Y_temp = Y_matrix
+                        Y_temp = deepcopy(Y_matrix)
                         Y_temp[:,v] = y_temp
                         Y_temp = vcat(Y_temp...)                       
                         DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])                        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
-                            y_best = y_temp
+                            y_best = deepcopy(y_temp)
                         end
                     end
 
                     # Case 3: Try rounding y2 to 0
                     if y1 + y2 < 1
                         y_temp[pair_ind_temp] = [y1+y2 0]
-                        Y_temp = Y_matrix
+                        Y_temp = deepcopy(Y_matrix)
                         Y_temp[:,v] = y_temp
                         Y_temp = vcat(Y_temp...)                      
                         DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
-                            y_best = y_temp
+                            y_best = deepcopy(y_temp)
                         end
                     end
 
                     # Case 4: Try rounding y2 to 1
                     if y1 - (1 - y2) > 0
                         y_temp[pair_ind_temp] = [y1-(1-y2) 1]
-                        Y_temp = Y_matrix
+                        Y_temp = deepcopy(Y_matrix)
                         Y_temp[:,v] = y_temp
                         Y_temp = vcat(Y_temp...)                     
                         DO_temp = sum([ F[m](S_opt) for m in 1:length(F) ] .* [ Gintegral[n](Y_temp) for n in 1:length(Gintegral) ])        
                         if (DO_temp < DO_best)
                             DO_best = DO_temp
-                            y_best = y_temp
+                            y_best = deepcopy(y_temp)
                         end
                     end
                 end
@@ -483,7 +787,6 @@ function lruAdvance(time_slot::Int64, lru_timestamps::Array{Int64, 2}, lru_cache
                         lru_cache[eviction,pk] = 0
                     end
                 end
-                #lru_timestamps[i,pk] = time_slot
                 lru_cache[i,pk] = 1
             else
                 break
@@ -524,7 +827,6 @@ function lfuAdvance(lfu_counts::Array{Int64, 2}, lfu_cache::BitArray{2}, reqs::r
                         lfu_cache[eviction,pk] = 0
                     end
                 end
-                #lfu_counts[i,pk] += 1
                 lfu_cache[i,pk] = 1
             else
                 break

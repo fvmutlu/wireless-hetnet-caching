@@ -1,0 +1,162 @@
+--/ SC = 1 /--
+--ALT--
+Delay: 208.53, Not Rounded: 208.58
+ -- LRU --
+Delay: 210.53
+ -- LFU --
+Delay: 210.36
+ -- FIFO --
+Delay: 210.67
+--/ SC = 2 /--
+--ALT--
+Delay: 203.04, Not Rounded: 203.23
+ -- LRU --
+Delay: 203.46
+ -- LFU --
+Delay: 203.39
+ -- FIFO --
+Delay: 203.62
+--/ SC = 3 /--
+--ALT--
+Delay: 162.90, Not Rounded: 163.02
+ -- LRU --
+Delay: 198.24
+ -- LFU --
+Delay: 195.41
+ -- FIFO --
+Delay: 201.88
+--/ SC = 4 /--
+--ALT--
+Delay: 95.04, Not Rounded: 95.72
+ -- LRU --
+Delay: 183.64
+ -- LFU --
+Delay: 180.23
+ -- FIFO --
+Delay: 192.41
+--/ SC = 5 /--
+--ALT--
+Delay: 73.49, Not Rounded: 73.69
+ -- LRU --
+Delay: 134.19
+ -- LFU --
+Delay: 130.37
+ -- FIFO --
+Delay: 137.35
+--/ SC = 6 /--
+--ALT--
+Delay: 58.18, Not Rounded: 58.26
+ -- LRU --
+Delay: 111.29
+ -- LFU --
+Delay: 108.19
+ -- FIFO --
+Delay: 114.38
+--/ SC = 7 /--
+--ALT--
+Delay: 58.16, Not Rounded: 58.34
+ -- LRU --
+Delay: 111.29
+ -- LFU --
+Delay: 108.19
+ -- FIFO --
+Delay: 114.38
+--/ SC = 8 /--
+--ALT--
+Delay: 50.82, Not Rounded: 50.88
+ -- LRU --
+Delay: 93.86
+ -- LFU --
+Delay: 89.10
+ -- FIFO --
+Delay: 97.07
+--/ SC = 9 /--
+--ALT--
+Delay: 41.75, Not Rounded: 41.93
+ -- LRU --
+Delay: 78.05
+ -- LFU --
+Delay: 74.19
+ -- FIFO --
+Delay: 79.58
+--/ SC = 10 /--
+--ALT--
+Delay: 38.61, Not Rounded: 38.79
+ -- LRU --
+Delay: 74.23
+ -- LFU --
+Delay: 70.66
+ -- FIFO --
+Delay: 75.64
+--/ SC = 11 /--
+--ALT--
+Delay: 36.71, Not Rounded: 36.91
+ -- LRU --
+Delay: 94.11
+ -- LFU --
+Delay: 86.40
+ -- FIFO --
+Delay: 95.94
+--/ SC = 12 /--
+--ALT--
+Delay: 36.72, Not Rounded: 36.83
+ -- LRU --
+Delay: 94.11
+ -- LFU --
+Delay: 86.40
+ -- FIFO --
+Delay: 95.94
+--/ SC = 13 /--
+--ALT--
+Delay: 36.72, Not Rounded: 36.87
+ -- LRU --
+Delay: 94.11
+ -- LFU --
+Delay: 86.40
+ -- FIFO --
+Delay: 95.94
+--/ SC = 14 /--
+--ALT--
+Delay: 34.89, Not Rounded: 35.43
+ -- LRU --
+Delay: 91.60
+ -- LFU --
+Delay: 84.57
+ -- FIFO --
+Delay: 93.99
+--/ SC = 15 /--
+--ALT--
+Delay: 32.80, Not Rounded: 32.82
+ -- LRU --
+Delay: 81.89
+ -- LFU --
+Delay: 74.60
+ -- FIFO --
+Delay: 83.32
+--/ SC = 16 /--
+--ALT--
+Delay: 30.34, Not Rounded: 30.39
+ -- LRU --
+Delay: 69.87
+ -- LFU --
+Delay: 63.71
+ -- FIFO --
+Delay: 70.20
+--/ SC = 17 /--
+--ALT--
+Delay: 29.55, Not Rounded: 29.55
+ -- LRU --
+Delay: 94.50
+ -- LFU --
+Delay: 88.25
+ -- FIFO --
+Delay: 98.89
+--/ SC = 18 /--
+--ALT--
+Delay: 29.56, Not Rounded: 29.62
+ -- LRU --
+Delay: 94.50
+ -- LFU --
+Delay: 88.25
+ -- FIFO --
+Delay: 98.89
