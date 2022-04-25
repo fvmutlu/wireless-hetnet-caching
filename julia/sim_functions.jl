@@ -84,7 +84,7 @@ end
 ## Run optimization over different initial points
 
 function runSim(params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams, probcomps::problem_components = probcomps)
-    open("/home/volkan/opt-caching-power/julia/convergenceresults.txt","a") do io
+    open("/home/volkan/Repos/wireless-hetnet-caching/julia/convergenceresults.txt","a") do io
         println(io, "--------")
         println(io, "--params--")
         println(io, params)
@@ -118,7 +118,7 @@ function runSim(params::other_parameters = params, netparams::network_parameters
     D_0_alt, S_alt = pwrOnly(S_alt, X_alt, funcs, consts)
     @printf("One more pwr: %.2f\n",D_0_alt)
 
-    open("/home/volkan/opt-caching-power/julia/convergenceresults.txt","a") do io
+    open("/home/volkan/Repos/wireless-hetnet-caching/julia/convergenceresults.txt","a") do io
         println(io,"-- SUB --")
         println(io,D_sub_arr)
         println(io,cputime_sub_arr)

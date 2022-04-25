@@ -1,4 +1,4 @@
-using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, LightGraphs, SimpleWeightedGraphs, GeometryBasics, VoronoiCells, Plots
+using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, Graphs, SimpleWeightedGraphs, GeometryBasics, VoronoiCells, Plots
 
 struct network_graph # Will add more fields if necessary
     paths::Array{Array{Int64,1},2}
@@ -466,7 +466,6 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
     C = consts.C
     P = consts.P
     cache_capacity = consts.cache_capacity
-    
 
     # Minimum norm subproblem for S projection
     if S_step_t == 0 # Skip power optimization if all zeros were passed (relevant for ALT)
@@ -477,7 +476,7 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
         #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
         problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, P*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
         #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, S_proj_t <= P_max]) # problem definition (Convex.jl), per-transmission power constraint
-        solve!(problem, SCS.Optimizer(verbose=false), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
+        solve!(problem, SCS.Optimizer(), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
         S_proj_t = evaluate(S_proj_t)
     end
 
@@ -488,7 +487,7 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
         dim_Y = size(Y_step_t,1)
         Y_proj_t = Variable(dim_Y)
         problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
-        solve!(problem, SCS.Optimizer(verbose=false), verbose=false)
+        solve!(problem, SCS.Optimizer(), verbose=false)
         Y_proj_t = evaluate(Y_proj_t)
     end
     return S_proj_t, Y_proj_t
