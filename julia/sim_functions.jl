@@ -16,6 +16,7 @@ mutable struct network_parameters
     V::Int64 # Total number of nodes (Macro cell + small cells + users)
     SC::Int64 # Number of small cells (SCs)
     R_cell::Float64 # Radius of cell
+    R_intf::Float64 # Radius of interference
     pathloss_exponent::Float64 # Self explanatory
     C_bh_mc::Float64 # MC-BH wireline link cost
     C_bh_sc::Float64 # MC-SC wireline link cost (same for all SCs)
@@ -41,7 +42,7 @@ end
 function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
     cfg = split.(readlines(input), " # ")
     (V, SC, M, c_mc, c_sc, pd_type, numof_initpoints) = parse.(Int64, [ cfg[i][1] for i in 1:7 ])
-    (P_min, P_max, pathloss_exponent, noise, R_cell, pd_param) = parse.(Float64, [ cfg[i][1] for i in 8:13 ])
+    (P_min, P_max, pathloss_exponent, noise, R_cell, R_intf, pd_param) = parse.(Float64, [ cfg[i][1] for i in 8:14 ])
     
     U = V - SC - 1
     C_bh_mc = max((R_cell/2),1)^pathloss_exponent # Cost at the wireline edge between backhaul to macro cell (calculated completely heuristically, there could be smarter way of determining this)
@@ -56,7 +57,7 @@ function readConfig(input = "/home/volkan/opt-caching-power/julia/config.txt")
     end
     
     params = other_parameters(M, pd, U, D_bh_mc, D_bh_sc, numof_initpoints) # numof_requests = U FOR CURRENT CASE
-    netparams = network_parameters(V, SC, R_cell, pathloss_exponent, C_bh_mc, C_bh_sc, noise)
+    netparams = network_parameters(V, SC, R_cell, R_intf, pathloss_exponent, C_bh_mc, C_bh_sc, noise)
     constparams = constraint_parameters(P_min, P_max, c_mc, c_sc)
 
     return params, netparams, constparams
@@ -65,7 +66,7 @@ end
 function newProblem(params::other_parameters = params, netparams::network_parameters = netparams, constparams::constraint_parameters = constparams)
     V_pos = cellDist(netparams.V, netparams.SC, netparams.R_cell)
 
-    netgraph = makeGraph(V_pos, netparams.pathloss_exponent, netparams.C_bh_mc, netparams.C_bh_sc)
+    netgraph = makeGraph(V_pos, netparams.pathloss_exponent, netparams.R_intf, netparams.C_bh_mc, netparams.C_bh_sc)
 
     reqs = randomRequests(params.pd, params.numof_requests, 1.0)
 

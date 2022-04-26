@@ -5,6 +5,7 @@ using ForwardDiff
 function funcSetup(netgraph::network_graph, reqs::requests, V::Int64, M::Int64, noise::Float64, D_bh_mc::Float64, D_bh_sc::Float64)
     paths = netgraph.paths
     edges = netgraph.edges
+    int_edges = netgraph.int_edges
     gains = netgraph.gains
     sc_nodes = netgraph.sc_nodes
 
@@ -14,10 +15,16 @@ function funcSetup(netgraph::network_graph, reqs::requests, V::Int64, M::Int64, 
 
     # Set up function F
     SINR = Array{Function}(undef, numof_edges) # We need the SINR functions first
-    vprime = edges[:, 1] # Collection of v' nodes to get gains for interference calculation (this includes the actual signal of interest power)
+    #vprime = edges[:, 1] # Collection of v' nodes to get gains for interference calculation (this includes the actual signal of interest power)
     for edge in 1:numof_edges
         v = edges[edge, 1]; u = edges[edge, 2] # Tx side of edge = v, Rx side = u
-        SINR[edge] = S -> ( gains[v, u] * S[edge] ) / ( noise + sum( gains[vprime, u] .* S[:] ) - gains[v, u] * S[edge] ) # SINR = signal power / (noise + all powers - signal power)
+        #SINR[edge] = S -> ( gains[v, u] * S[edge] ) / ( noise + sum( gains[vprime, u] .* S[:] ) - gains[v, u] * S[edge] ) # SINR = signal power / (noise + all powers - signal power)
+        if isempty(int_edges[edge])
+            SINR[edge] = S -> ( gains[v, u] * S[edge] ) / noise
+        else
+            vprime = [ edges[e, 1] for e in int_edges[edge] ] # Tx side of interferer will be the first node in the edge numbered 'e', where 'e' scans through all items in the interfering edges for the current edge        
+            SINR[edge] = S -> ( gains[v, u] * S[edge] ) / ( noise + sum( gains[vprime, u] .* S[int_edges[edge]] ) ) # SINR = signal power / (noise + interfering powers)
+        end
     end
 
     F = Array{Function}(undef, numof_hops)

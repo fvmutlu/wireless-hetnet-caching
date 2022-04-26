@@ -1,8 +1,9 @@
-using Convex, SCS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, Graphs, SimpleWeightedGraphs, GeometryBasics, VoronoiCells, Plots
+using Convex, ECOS, Random, Distributions, StatsBase, Dates, Combinatorics, DataStructures, Graphs, SimpleWeightedGraphs, GeometryBasics, VoronoiCells, Plots
 
 struct network_graph # Will add more fields if necessary
-    paths::Array{Array{Int64,1},2}
+    paths::Array{Array{Int64,1},2} # Why does this have 2 on the second dimension instead of 1?
     edges::Array{Int64,2}
+    int_edges::Array{Array{Int64,1},1}
     gains::Array{Float64,2}
     sc_nodes::Array{Int64,1}
 end
@@ -212,7 +213,7 @@ function addSC(V_pos::Array{Float64,2}, R_cell::Float64) # TODO: Whenever this i
     return V_pos
 end
 
-function makeGraph(V_pos::Array{Float64,2}, pathloss_exponent::Float64, C_bh_mc::Float64, C_bh_sc::Float64)
+function makeGraph(V_pos::Array{Float64,2}, pathloss_exponent::Float64, interference_range::Float64, C_bh_mc::Float64, C_bh_sc::Float64)
     # Create the routing graph
     V = size(V_pos,1)
     sc_nodes = findall(i -> i == 1, V_pos[:,3])
@@ -271,8 +272,24 @@ function makeGraph(V_pos::Array{Float64,2}, pathloss_exponent::Float64, C_bh_mc:
         marker = marker + plen - 1;
     end
     edges = unique(edges,dims=1)
+    numof_edges = size(edges, 1)
 
-    netgraph = network_graph(paths, edges, gains, sc_nodes)
+    #int_edges = Array{Array{Int64,1},1}(undef, numof_edges)
+    int_edges = [ [] for _ in 1:numof_edges ]
+    for i in 1:numof_edges, j in 1:numof_edges
+        if i != j
+            u = edges[i, 2]
+            v = edges[j, 1]
+            dist = sqrt(sum((V_pos[v, [1 2]] - V_pos[u, [1 2]]) .^ 2, dims=2))[1]
+            if dist <= interference_range
+                append!(int_edges[i],j)
+            end
+        end                  
+    end
+
+    println(int_edges)
+
+    netgraph = network_graph(paths, edges, int_edges, gains, sc_nodes)
     return netgraph
 end
 
@@ -476,7 +493,8 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
         #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, ones(Int64, 1, dim_S)*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
         problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, P*S_proj_t <= P_max]) # problem definition (Convex.jl), total power constraint
         #problem = minimize(norm(S_proj_t - S_step_t),[S_proj_t >= P_min, S_proj_t <= P_max]) # problem definition (Convex.jl), per-transmission power constraint
-        solve!(problem, SCS.Optimizer(), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
+        #solve!(problem, SCS.Optimizer(), verbose=false) # use SCS solver (Convex.jl, SCS.jl)
+        solve!(problem, ECOS.Optimizer, verbose=false; silent_solver=true) # use ECOS solver (Convex.jl, ECOS.jl)
         S_proj_t = evaluate(S_proj_t)
     end
 
@@ -487,7 +505,8 @@ function projOpt(S_step_t, Y_step_t, consts::constraints)
         dim_Y = size(Y_step_t,1)
         Y_proj_t = Variable(dim_Y)
         problem = minimize(norm(Y_proj_t - Y_step_t),[Y_proj_t >= 0, Y_proj_t <= 1, C*Y_proj_t <= cache_capacity])
-        solve!(problem, SCS.Optimizer(), verbose=false)
+        #solve!(problem, SCS.Optimizer(), verbose=false)
+        solve!(problem, ECOS.Optimizer, verbose=false; silent_solver=true) # use ECOS solver (Convex.jl, ECOS.jl)
         Y_proj_t = evaluate(Y_proj_t)
     end
     return S_proj_t, Y_proj_t

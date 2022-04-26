@@ -1,4 +1,4 @@
-15 # V
+25 # V
 4 # SC
 10 # M
 4 # c_mc
@@ -6,8 +6,9 @@
 0 # pd_type
 1 # numof_initpoints
 1.0 # P_min
-10.0 # P_max
+1000.0 # P_max
 3.7 # pathloss_exponent
 1.0 # noise
 5.0 # R_cell
+1.2 # R_intf
 0.25 # pd_param
